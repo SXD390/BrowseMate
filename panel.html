@@ -11,6 +11,10 @@
   <header class="header">
     <div class="header-left">
       <h1 class="app-title">Cedric</h1>
+      <div class="tabs">
+        <button id="tabChat" class="tab active">Chat</button>
+        <button id="tabSources" class="tab">Sources</button>
+      </div>
       <div class="session-selector">
         <select id="sessionSelect" class="session-dropdown">
           <option value="">Loading sessions...</option>
@@ -56,40 +60,40 @@
       </div>
     </div>
 
-    <!-- Chat Messages -->
-    <div id="chatContainer" class="chat-container">
-      <div id="messagesList" class="messages-list">
-        <!-- Messages will be inserted here -->
+    <!-- Chat View -->
+    <div id="viewChat" class="view active">
+      <div id="chatContainer" class="chat-container">
+        <div id="messagesList" class="messages-list">
+          <!-- Messages will be inserted here -->
+        </div>
+        
+        <!-- Loading indicator -->
+        <div id="loadingIndicator" class="loading-indicator hidden">
+          <div class="loading-spinner"></div>
+          <span>Thinking...</span>
+        </div>
       </div>
-      
-      <!-- Loading indicator -->
-      <div id="loadingIndicator" class="loading-indicator hidden">
-        <div class="loading-spinner"></div>
-        <span>Thinking...</span>
+    </div>
+
+    <!-- Sources View -->
+    <div id="viewSources" class="view">
+      <div class="sources-header">
+        <div class="muted">Ingested webpages for this session</div>
+        <div id="ingestedCount" class="badge">0</div>
       </div>
+      <ul id="sourcesList" class="sources-list"></ul>
     </div>
 
     <!-- Composer -->
     <div class="composer">
-      <div class="composer-input-wrapper">
+      <div class="composer-field">
         <textarea 
           id="messageInput" 
-          class="composer-input" 
-          placeholder="Ask Cedric anything..."
-          rows="1"
+          placeholder="Ask Cedric anything... (Ctrl/Cmd+Enter to send)"
         ></textarea>
-        <div class="composer-actions">
-          <div class="char-count">
-            <span id="charCount">0</span>
-          </div>
-          <button id="sendBtn" class="send-btn" disabled>
-            <svg class="send-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="22" y1="2" x2="11" y2="13"></line>
-              <polygon points="22,2 15,22 11,13 2,9 22,2"></polygon>
-            </svg>
-          </button>
-        </div>
+        <div id="tokenPill" class="token-pill">0 tokens</div>
       </div>
+      <button id="sendBtn" class="send-btn">Send ↵</button>
     </div>
   </main>
 

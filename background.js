@@ -88,77 +88,77 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 // Content extraction function that will be injected into the page
 function extractPageContent() {
   try {
-    // Get basic page info
     const title = document.title || '';
     const url = window.location.href;
-    
-    // Extract main content
-    let text = '';
-    
-    // Try to find main content areas
-    const selectors = [
-      'main',
-      'article',
-      '[role="main"]',
-      '.main-content',
-      '.content',
-      '#content',
-      '#main'
-    ];
-    
-    let mainElement = null;
-    for (const selector of selectors) {
-      mainElement = document.querySelector(selector);
-      if (mainElement) break;
-    }
-    
-    // If no main element found, use body
-    if (!mainElement) {
-      mainElement = document.body;
-    }
-    
-    // Extract text content, excluding unwanted elements
-    const unwantedSelectors = 'script, style, noscript, nav, footer, aside, .nav, .footer, .sidebar, .ad, .advertisement';
-    const unwantedElements = mainElement.querySelectorAll(unwantedSelectors);
-    
-    // Clone the element to avoid modifying the original DOM
-    const clone = mainElement.cloneNode(true);
-    
-    // Remove unwanted elements from clone
-    unwantedElements.forEach(el => {
-      if (el.parentNode) {
-        el.parentNode.removeChild(el);
-      }
-    });
-    
-    // Extract text content
-    text = clone.textContent || '';
-    
-    // Clean up text
-    text = text
-      .replace(/\s+/g, ' ') // Replace multiple whitespace with single space
-      .replace(/\n\s*\n/g, '\n') // Remove empty lines
-      .trim();
-    
-    // Truncate if too long (keep under 40k chars)
-    const maxLength = 40000;
-    if (text.length > maxLength) {
-      text = text.substring(0, maxLength) + '... [Content truncated]';
-    }
-    
+
+    // Prefer a main/article region; fallback to body
+    const selectors = ['main','article','[role="main"]','.main-content','.content','#content','#main'];
+    let root = selectors.map(s => document.querySelector(s)).find(Boolean) || document.body;
+
+    // Clone & strip noise
+    const clone = root.cloneNode(true);
+    clone.querySelectorAll('script,style,noscript,nav,footer,aside,.nav,.footer,.sidebar,.ad,.advertisement').forEach(el => el.remove());
+
+    // Convert DOM → very lightweight markdown (h1–h3, p, li, a, code)
+    const toMarkdown = (node) => {
+      const blocks = [];
+      const walk = (el) => {
+        const tag = (el.tagName || '').toLowerCase();
+        if (tag === 'h1' || tag === 'h2' || tag === 'h3') {
+          const lvl = tag === 'h1' ? '#' : tag === 'h2' ? '##' : '###';
+          blocks.push(`${lvl} ${el.textContent.trim()}\n`);
+        } else if (tag === 'p') {
+          blocks.push(`${inline(el).trim()}\n`);
+        } else if (tag === 'li') {
+          blocks.push(`- ${inline(el).trim()}\n`);
+        } else {
+          Array.from(el.children).forEach(walk);
+        }
+      };
+      const inline = (el) => {
+        return Array.from(el.childNodes).map(n => {
+          if (n.nodeType === Node.TEXT_NODE) return n.nodeValue;
+          if (n.nodeType === Node.ELEMENT_NODE) {
+            const t = n.tagName.toLowerCase();
+            if (t === 'code') return '`' + n.textContent + '`';
+            if (t === 'strong' || t === 'b') return '**' + inline(n) + '**';
+            if (t === 'em' || t === 'i') return '*' + inline(n) + '*';
+            if (t === 'a') {
+              const href = n.getAttribute('href') || '#';
+              return `[${n.textContent}](${href})`;
+            }
+            return inline(n);
+          }
+          return '';
+        }).join('');
+      };
+      walk(node);
+      return blocks.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+    };
+
+    const markdown = toMarkdown(clone);
+
+    // "Essential bits": keep headings + first paragraphs, up to ~3000 chars
+    let essentialMarkdown = markdown.split('\n')
+      .filter(line => line.startsWith('#') || line.trim().length > 0)
+      .slice(0, 300)                      // rough cap on lines
+      .join('\n')
+      .slice(0, 3000);
+
+    if (!essentialMarkdown) essentialMarkdown = (clone.textContent || '').trim().slice(0, 3000);
+
     return {
       title,
       url,
-      text,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      markdown,
+      essentialMarkdown
     };
-    
   } catch (error) {
     return {
       error: 'Failed to extract content: ' + error.message,
       title: document.title || '',
       url: window.location.href,
-      text: '',
       timestamp: new Date().toISOString()
     };
   }

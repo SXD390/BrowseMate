@@ -16,12 +16,14 @@ function testMessageCompilation() {
   console.log('Testing message compilation...');
   
   try {
-    const contents = compileMessagesForGemini(testMessages);
-    console.log('Compiled contents:', contents);
+    const result = compileMessagesForGemini(testMessages);
+    console.log('Compiled result:', result);
     
     // Validate structure
-    if (contents && Array.isArray(contents) && contents.length > 0) {
+    if (result && result.contents && Array.isArray(result.contents) && result.contents.length > 0 && result.systemInstruction) {
       console.log('✅ Message compilation successful');
+      console.log('Contents:', result.contents);
+      console.log('System Instruction:', result.systemInstruction);
       return true;
     } else {
       console.log('❌ Message compilation failed - invalid structure');

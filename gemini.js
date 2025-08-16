@@ -28,14 +28,67 @@ const RETRY_CONFIG = {
 };
 
 /**
+ * Compile messages for Gemini API format with proper roles and system instruction
+ * @param {Array} messages - Array of message objects
+ * @param {Object} settings - User settings
+ * @returns {Object} Object with contents array and systemInstruction
+ */
+export function compileMessagesForGemini(messages, settings = {}) {
+  // Optional system prompt lives *outside* contents
+  const systemInstruction = {
+    parts: [{
+      text: [
+        "You are BrowseMate, a fast, reliable chat agent that runs inside a web browser.",
+        "You receive three kinds of inputs:",
+        "1) prior chat turns, 2) the user's current prompt, and 3) optional PAGE CONTEXT blocks that were actively ingested from webpages.",
+        "Guidelines:",
+        "- Always prefer facts from the most relevant PAGE CONTEXT blocks. Cite the source title or domain in-line (e.g., \"(source: example.com)\") when you rely on it.",
+        "- If PAGE CONTEXT conflicts, call this out and explain the divergence; prefer the most recent, specific source.",
+        "- Be concise by default; use bullet points for lists. Format code with fenced blocks.",
+        "- If the question is general and PAGE CONTEXT is irrelevant, answer normally without forcing a summary.",
+        "- Do not invent URLs or content that wasn't provided.",
+        "- When asked to summarize a page, extract the essentials (headings, key bullets, data) and avoid boilerplate.",
+        "Output should be helpful, accurate, and immediately usable."
+      ].join('\n')
+    }]
+  };
+
+  // Keep messages small. Only last ~8 user/model turns + last 5 contexts (trimmed)
+  const MAX_TURNS = 8;
+  const MAX_CONTEXT = 5;
+  const MAX_CONTEXT_CHARS = 3000;
+
+  const chatHistory = [];
+  const userAndModel = messages.filter(m => m.role === 'user' || m.role === 'model').slice(-MAX_TURNS);
+  const contexts = messages
+    .filter(m => m.role === 'context')
+    .slice(-MAX_CONTEXT)
+    .map(m => {
+      // Prefer essential markdown if present, else fall back
+      const md = (m.essentialMarkdown || m.markdown || m.text || '').slice(0, MAX_CONTEXT_CHARS);
+      const header = `PAGE CONTEXT — ${m.title || 'Untitled'} (${m.url || 'Unknown'}) — captured ${m.timestamp || ''}`;
+      return { role: 'user', parts: [{ text: `${header}\n\n${md}` }] };
+    });
+
+  userAndModel.forEach(m => {
+    if (m.role === 'user') chatHistory.push({ role: 'user', parts: [{ text: m.text }] });
+    if (m.role === 'model') chatHistory.push({ role: 'model', parts: [{ text: m.text }] });
+  });
+
+  const contents = [...contexts, ...chatHistory];
+  return { contents, systemInstruction };
+}
+
+/**
  * Call Gemini API with exponential backoff retry logic
  * @param {Object} params - API call parameters
  * @param {string} params.apiKey - Gemini API key
  * @param {Array} params.contents - Array of content objects for Gemini
+ * @param {Object} params.systemInstruction - Optional system instruction
  * @param {Object} params.generationConfig - Optional generation configuration
  * @returns {Promise<Object>} Gemini API response
  */
-export async function callGemini({ apiKey, contents, generationConfig = null }) {
+export async function callGemini({ apiKey, contents, systemInstruction, generationConfig = null }) {
   if (!apiKey) {
     throw new Error('API key is required');
   }
@@ -47,7 +100,7 @@ export async function callGemini({ apiKey, contents, generationConfig = null }) 
   const config = generationConfig || DEFAULT_GENERATION_CONFIG;
   
   return await retryWithBackoff(async () => {
-    return await makeGeminiRequest(apiKey, contents, config);
+    return await makeGeminiRequest(apiKey, contents, systemInstruction, config);
   });
 }
 
@@ -55,10 +108,11 @@ export async function callGemini({ apiKey, contents, generationConfig = null }) 
  * Make a single request to Gemini API
  * @param {string} apiKey - Gemini API key
  * @param {Array} contents - Array of content objects
+ * @param {Object} systemInstruction - System instruction
  * @param {Object} generationConfig - Generation configuration
  * @returns {Promise<Object>} API response
  */
-async function makeGeminiRequest(apiKey, contents, generationConfig) {
+async function makeGeminiRequest(apiKey, contents, systemInstruction, generationConfig) {
   const response = await fetch(GEMINI_API_ENDPOINT, {
     method: 'POST',
     headers: {
@@ -67,14 +121,19 @@ async function makeGeminiRequest(apiKey, contents, generationConfig) {
     },
     body: JSON.stringify({
       contents,
+      ...(systemInstruction ? { systemInstruction } : {}),
       generationConfig
     })
   });
 
   if (!response.ok) {
-    const errorText = await response.text().catch(() => 'Unknown error');
-    const errorMessage = ERROR_MESSAGES[response.status] || `HTTP ${response.status}: ${errorText}`;
-    throw new Error(errorMessage);
+    // Surface Gemini's actual error for 4xx so you can see what's wrong
+    const maybeJson = await response.text();
+    let detail = maybeJson;
+    try { 
+      detail = JSON.parse(maybeJson)?.error?.message || maybeJson; 
+    } catch (_) {}
+    throw new Error(`HTTP ${response.status}: ${detail}`);
   }
 
   return await response.json();
@@ -151,54 +210,6 @@ export function parseGeminiResponse(response) {
     console.error('Failed to parse Gemini response:', error, response);
     throw new Error(`Failed to parse response: ${error.message}`);
   }
-}
-
-/**
- * Compile messages for Gemini API format
- * @param {Array} messages - Array of message objects
- * @param {Object} settings - User settings
- * @returns {Array} Formatted contents array for Gemini
- */
-export function compileMessagesForGemini(messages, settings = {}) {
-  const contents = [];
-  
-  // Add system primer
-  contents.push({
-    parts: [{
-      text: "You are Cedric, a concise AI summarizer and assistant. Use PAGE CONTEXT if relevant; otherwise answer normally."
-    }]
-  });
-
-  // Process each message
-  messages.forEach(message => {
-    switch (message.role) {
-      case 'user':
-        contents.push({
-          parts: [{ text: message.text }]
-        });
-        break;
-        
-      case 'model':
-        // Include previous assistant responses as context
-        contents.push({
-          parts: [{ text: `Assistant (previous): ${message.text}` }]
-        });
-        break;
-        
-      case 'context':
-        // Format context messages clearly
-        const contextText = `PAGE CONTEXT — ${message.title || 'Unknown'} (${message.url || 'Unknown'}) — captured ${message.timestamp || 'Unknown'}:\n${message.text}`;
-        contents.push({
-          parts: [{ text: contextText }]
-        });
-        break;
-        
-      default:
-        console.warn('Unknown message role:', message.role);
-    }
-  });
-
-  return contents;
 }
 
 /**

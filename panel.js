@@ -24,6 +24,14 @@ class CedricPanel {
     this.settingsBtn = document.getElementById('settingsBtn');
     this.closeBtn = document.getElementById('closeBtn');
     
+    // Tab elements
+    this.tabChat = document.getElementById('tabChat');
+    this.tabSources = document.getElementById('tabSources');
+    this.viewChat = document.getElementById('viewChat');
+    this.viewSources = document.getElementById('viewSources');
+    this.sourcesList = document.getElementById('sourcesList');
+    this.ingestedCount = document.getElementById('ingestedCount');
+    
     // Main content elements
     this.apiKeyBanner = document.getElementById('apiKeyBanner');
     this.openSettingsBtn = document.getElementById('openSettingsBtn');
@@ -34,7 +42,7 @@ class CedricPanel {
     // Composer elements
     this.messageInput = document.getElementById('messageInput');
     this.sendBtn = document.getElementById('sendBtn');
-    this.charCount = document.getElementById('charCount');
+    this.tokenPill = document.getElementById('tokenPill');
     
     // Settings modal elements
     this.settingsModal = document.getElementById('settingsModal');
@@ -245,31 +253,47 @@ class CedricPanel {
     try {
       this.ingestBtn.disabled = true;
       this.ingestBtn.innerHTML = '<div class="loading-spinner"></div> Ingesting...';
-      
-      // Get current tab info
+
       const response = await chrome.runtime.sendMessage({ type: 'EXTRACT_CONTENT' });
-      
-      if (response.error) {
-        throw new Error(response.error);
+      if (response.error) throw new Error(response.error);
+
+      const session = await SessionStorage.getSession(this.currentSessionId);
+      if (!session) throw new Error('Session not found');
+
+      session.ingestedUrls = session.ingestedUrls || {};
+
+      // De-dupe by URL
+      if (session.ingestedUrls[response.url]) {
+        this.showToast('Already ingested this page for this session', 'warning');
+        return;
       }
-      
-      // Add context message to current session
-      if (this.currentSessionId) {
-        const contextMessage = {
-          role: 'context',
-          text: response.text,
-          title: response.title,
-          url: response.url,
-          timestamp: response.timestamp,
-          domain: this.extractDomain(response.url)
-        };
-        
-        await SessionStorage.addMessage(this.currentSessionId, contextMessage);
-        await this.loadSessionMessages(this.currentSessionId);
-        
-        this.showToast(`Ingested content from ${response.domain}`, 'success');
-      }
-      
+
+      // Record URL
+      session.ingestedUrls[response.url] = {
+        title: response.title,
+        timestamp: response.timestamp
+      };
+
+      // Save the registry
+      await SessionStorage.saveSession(session);
+
+      // Add compact PAGE CONTEXT message
+      const contextMessage = {
+        role: 'context',
+        title: response.title,
+        url: response.url,
+        timestamp: response.timestamp,
+        domain: this.extractDomain(response.url),
+        // Store both full markdown and a trimmed essential slice
+        markdown: response.markdown || null,
+        essentialMarkdown: response.essentialMarkdown || (response.text || '').slice(0, 3000),
+        text: undefined   // no bulky plain text in the visible message
+      };
+
+      await SessionStorage.addMessage(this.currentSessionId, contextMessage);
+      await this.loadSessionMessages(this.currentSessionId);
+
+      this.showToast(`Ingested content from ${contextMessage.domain}`, 'success');
     } catch (error) {
       console.error('Failed to ingest page:', error);
       this.showToast('Failed to ingest page content', 'error');
@@ -299,7 +323,7 @@ class CedricPanel {
   // Handle input change (character count, send button state)
   handleInputChange(event) {
     const text = event.target.value;
-    this.charCount.textContent = text.length;
+    this.tokenPill.textContent = `${text.length} tokens`; // Assuming 1 token = 1 character for simplicity
     this.updateSendButtonState();
     
     // Auto-resize textarea
@@ -360,10 +384,10 @@ class CedricPanel {
       }
       
       // Compile messages for Gemini
-      const contents = compileMessagesForGemini(session.messages, this.settings);
+      const { contents, systemInstruction } = compileMessagesForGemini(session.messages, this.settings);
       
       // Call Gemini API
-      const response = await callGemini({ apiKey, contents });
+      const response = await callGemini({ apiKey, contents, systemInstruction });
       const responseText = parseGeminiResponse(response);
       
       // Add model response to session
@@ -426,6 +450,7 @@ class CedricPanel {
             <span class="context-timestamp">${new Date(message.timestamp).toLocaleTimeString()}</span>
           </div>
           <div>Context ingested from <strong>${message.title || 'Unknown page'}</strong></div>
+          ${message.essentialMarkdown ? `<div class="context-preview">${message.essentialMarkdown.slice(0, 200)}${message.essentialMarkdown.length > 200 ? '...' : ''}</div>` : ''}
         </div>
       `;
     } else {
