@@ -68,6 +68,10 @@ class CedricPanel {
     this.settingsBtn.addEventListener('click', () => this.openSettings());
     this.closeBtn.addEventListener('click', () => this.closePanel());
     
+    // Tab events
+    this.tabChat.addEventListener('click', () => this.switchTab('chat'));
+    this.tabSources.addEventListener('click', () => this.switchTab('sources'));
+    
     // Composer events
     this.messageInput.addEventListener('input', (e) => this.handleInputChange(e));
     this.messageInput.addEventListener('keydown', (e) => this.handleKeyDown(e));
@@ -124,6 +128,20 @@ class CedricPanel {
     } else {
       console.warn('Chrome Side Panel API not available, falling back to content script overlay');
       this.showToast('Side Panel API not available', 'warning');
+    }
+  }
+
+  // Switch between chat and sources tabs
+  switchTab(which) {
+    const isChat = which === 'chat';
+    this.tabChat.classList.toggle('active', isChat);
+    this.tabSources.classList.toggle('active', !isChat);
+    this.viewChat.classList.toggle('active', isChat);
+    this.viewSources.classList.toggle('active', !isChat);
+    
+    if (!isChat) {
+      // Refresh sources when switching to sources tab
+      this.renderSources();
     }
   }
 
@@ -229,6 +247,8 @@ class CedricPanel {
       const session = await SessionStorage.getSession(sessionId);
       if (session) {
         this.displayMessages(session.messages);
+        // Also render sources
+        await this.renderSources();
       }
     } catch (error) {
       console.error('Failed to load session messages:', error);
@@ -292,6 +312,9 @@ class CedricPanel {
 
       await SessionStorage.addMessage(this.currentSessionId, contextMessage);
       await this.loadSessionMessages(this.currentSessionId);
+      
+      // Update sources list
+      await this.renderSources();
 
       this.showToast(`Ingested content from ${contextMessage.domain}`, 'success');
     } catch (error) {
@@ -323,12 +346,21 @@ class CedricPanel {
   // Handle input change (character count, send button state)
   handleInputChange(event) {
     const text = event.target.value;
-    this.tokenPill.textContent = `${text.length} tokens`; // Assuming 1 token = 1 character for simplicity
+    this.updateTokenCountPill();
     this.updateSendButtonState();
     
-    // Auto-resize textarea
+    // Auto-resize textarea but cap at CSS max-height so button doesn't sink
     this.messageInput.style.height = 'auto';
-    this.messageInput.style.height = Math.min(this.messageInput.scrollHeight, 120) + 'px';
+    const max = 140; // must match CSS
+    this.messageInput.style.height = Math.min(this.messageInput.scrollHeight, max) + 'px';
+  }
+
+  // Show tokens
+  updateTokenCountPill() {
+    const text = this.messageInput.value || '';
+    // quick heuristic: ~4 chars per token
+    const tokens = Math.ceil(text.length / 4);
+    this.tokenPill.textContent = `${tokens.toLocaleString()} token${tokens===1?'':'s'}`;
   }
 
   // Handle keyboard shortcuts
@@ -369,7 +401,7 @@ class CedricPanel {
       // Clear input
       this.messageInput.value = '';
       this.messageInput.style.height = 'auto';
-      this.handleInputChange({ target: { value: '' } });
+      this.updateTokenCountPill();
       
       // Get API key
       const apiKey = await SettingsStorage.getApiKey();
@@ -492,6 +524,41 @@ class CedricPanel {
     setTimeout(() => {
       this.chatContainer.scrollTop = this.chatContainer.scrollHeight;
     }, 100);
+  }
+
+  // Render the sources list
+  async renderSources() {
+    const session = await SessionStorage.getSession(this.currentSessionId);
+    if (!session) return;
+    
+    const urls = Object.entries(session.ingestedUrls || {});
+    this.ingestedCount.textContent = urls.length;
+
+    this.sourcesList.innerHTML = '';
+    urls.forEach(([url, meta]) => {
+      const li = document.createElement('li');
+      const domain = this.extractDomain(url);
+      li.innerHTML = `
+        <div class="title">${meta.title || domain}</div>
+        <div class="meta">${domain} • ${new Date(meta.timestamp || Date.now()).toLocaleString()}</div>
+        <div>
+          <button data-open="${url}">Open</button>
+          <button data-remove="${url}">Remove</button>
+        </div>`;
+      
+      li.querySelector('[data-open]').addEventListener('click', () => chrome.tabs.create({ url }));
+      li.querySelector('[data-remove]').addEventListener('click', async () => {
+        delete session.ingestedUrls[url];
+        await SessionStorage.saveSession(session);
+        // Also remove any context messages for this URL
+        session.messages = (session.messages || []).filter(m => !(m.role==='context' && m.url === url));
+        await SessionStorage.saveSession(session);
+        await this.renderSources();
+        await this.loadSessionMessages(this.currentSessionId);
+        this.showToast('Removed source', 'success');
+      });
+      this.sourcesList.appendChild(li);
+    });
   }
 
   // Open settings modal
