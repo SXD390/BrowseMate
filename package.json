@@ -1,0 +1,48 @@
+{
+  "name": "cedric-ai-side-panel",
+  "version": "1.0.0",
+  "description": "AI-powered Chrome extension side panel using Google Gemini",
+  "main": "panel.js",
+  "scripts": {
+    "test": "echo 'Run tests in browser console using test-gemini.js'",
+    "build": "echo 'No build step required - this is a Chrome extension'",
+    "lint": "echo 'Consider using ESLint for JavaScript linting'"
+  },
+  "keywords": [
+    "chrome-extension",
+    "ai",
+    "gemini",
+    "side-panel",
+    "chrome",
+    "browser-extension"
+  ],
+  "author": "Cedric AI Side Panel",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/cedric-ai-side-panel.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/cedric-ai-side-panel/issues"
+  },
+  "homepage": "https://github.com/yourusername/cedric-ai-side-panel#readme",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "devDependencies": {},
+  "dependencies": {},
+  "manifest": {
+    "version": 3,
+    "permissions": [
+      "sidePanel",
+      "storage",
+      "tabs",
+      "scripting",
+      "activeTab"
+    ],
+    "host_permissions": [
+      "<all_urls>",
+      "https://generativelanguage.googleapis.com/*"
+    ]
+  }
+}

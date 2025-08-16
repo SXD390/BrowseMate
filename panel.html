@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cedric — AI Side Panel</title>
+  <link rel="stylesheet" href="panel.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="header-left">
+      <h1 class="app-title">Cedric</h1>
+      <div class="session-selector">
+        <select id="sessionSelect" class="session-dropdown">
+          <option value="">Loading sessions...</option>
+        </select>
+        <button id="newSessionBtn" class="new-session-btn" title="New Session">+</button>
+      </div>
+    </div>
+    
+    <div class="header-center">
+      <button id="ingestBtn" class="ingest-btn">
+        <svg class="ingest-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7,10 12,15 17,10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        Ingest this web page
+      </button>
+    </div>
+    
+    <div class="header-right">
+      <button id="settingsBtn" class="settings-btn" title="Settings">
+        <svg class="settings-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1 1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </button>
+      <button id="closeBtn" class="close-btn" title="Close Panel">×</button>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- API Key Banner -->
+    <div id="apiKeyBanner" class="api-key-banner hidden">
+      <div class="banner-content">
+        <svg class="banner-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+        <span>Please set your Gemini API key in settings to start chatting</span>
+        <button id="openSettingsBtn" class="banner-btn">Open Settings</button>
+      </div>
+    </div>
+
+    <!-- Chat Messages -->
+    <div id="chatContainer" class="chat-container">
+      <div id="messagesList" class="messages-list">
+        <!-- Messages will be inserted here -->
+      </div>
+      
+      <!-- Loading indicator -->
+      <div id="loadingIndicator" class="loading-indicator hidden">
+        <div class="loading-spinner"></div>
+        <span>Thinking...</span>
+      </div>
+    </div>
+
+    <!-- Composer -->
+    <div class="composer">
+      <div class="composer-input-wrapper">
+        <textarea 
+          id="messageInput" 
+          class="composer-input" 
+          placeholder="Ask Cedric anything..."
+          rows="1"
+        ></textarea>
+        <div class="composer-actions">
+          <div class="char-count">
+            <span id="charCount">0</span>
+          </div>
+          <button id="sendBtn" class="send-btn" disabled>
+            <svg class="send-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22,2 15,22 11,13 2,9 22,2"></polygon>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Settings Modal -->
+  <div id="settingsModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Settings</h2>
+        <button id="closeSettingsBtn" class="modal-close-btn">×</button>
+      </div>
+      
+      <div class="modal-body">
+        <div class="setting-group">
+          <label for="apiKeyInput" class="setting-label">Gemini API Key</label>
+          <div class="api-key-input-wrapper">
+            <input 
+              type="password" 
+              id="apiKeyInput" 
+              class="setting-input" 
+              placeholder="Enter your Gemini API key"
+            >
+            <button id="testApiKeyBtn" class="test-btn">Test</button>
+          </div>
+          <p class="setting-help">
+            Get your API key from <a href="https://makersuite.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio</a>
+          </p>
+        </div>
+        
+        <div class="setting-group">
+          <label class="setting-label">
+            <input type="checkbox" id="sendUrlToggle" class="setting-checkbox">
+            Send URL with requests
+          </label>
+          <p class="setting-help">Include current page URL in conversation context</p>
+        </div>
+        
+        <div class="setting-group">
+          <label class="setting-label">Data Management</label>
+          <div class="data-actions">
+            <button id="exportSessionsBtn" class="data-btn">Export Sessions</button>
+            <button id="importSessionsBtn" class="data-btn">Import Sessions</button>
+            <button id="clearDataBtn" class="data-btn danger">Clear All Data</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notifications -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- Hidden file input for import -->
+  <input type="file" id="importFileInput" accept=".json" style="display: none;">
+
+  <!-- Scripts -->
+  <script type="module" src="panel.js"></script>
+</body>
+</html>
