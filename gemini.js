@@ -1,82 +1,103 @@
 // Gemini API integration for Cedric AI Side Panel
 // Handles API calls to Google's Gemini model with proper error handling
 
-const GEMINI_API_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+const GEMINI_API_ENDPOINT =
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
-// Default generation config
-const DEFAULT_GENERATION_CONFIG = {
-  thinkingConfig: { thinkingBudget: 0 }
-};
+const DEFAULT_GENERATION_CONFIG = { thinkingConfig: { thinkingBudget: 0 } };
 
-// Error mapping for common Gemini API errors
-const ERROR_MESSAGES = {
-  400: 'Invalid request - please check your input',
-  401: 'Invalid API key - please check your settings',
-  403: 'Access denied - check your API key permissions',
-  429: 'Rate limit exceeded - please wait a moment and try again',
-  500: 'Gemini service error - please try again later',
-  502: 'Gemini service temporarily unavailable',
-  503: 'Gemini service overloaded - please try again later',
-  504: 'Request timeout - please try again'
-};
+// Return N best 1KB windows around query terms (CK_LOCKMUTEX, etc.)
+function pickRelevantSnippets(query, markdown, {
+  perHitChars = 1000,
+  maxChars = 6000
+} = {}) {
+  if (!markdown) return '';
+  
+  const terms = (query.toLowerCase().match(/\b[\w.-]{3,}\b/g) || [])
+    .slice(0, 12); // cap terms
+  
+  if (!terms.length) return markdown.slice(0, maxChars);
 
-// Retry configuration for failed requests
-const RETRY_CONFIG = {
-  maxRetries: 3,
-  baseDelay: 1000, // 1 second
-  maxDelay: 10000, // 10 seconds
-};
+  const text = markdown;
+  const lc = markdown.toLowerCase();
+  const hits = [];
+  
+  for (const term of terms) {
+    let idx = 0;
+    while ((idx = lc.indexOf(term, idx)) !== -1) {
+      const start = Math.max(0, idx - Math.floor(perHitChars/2));
+      const end = Math.min(text.length, idx + term.length + Math.floor(perHitChars/2));
+      hits.push([start, end]);
+      idx += term.length;
+    }
+  }
+  
+  if (!hits.length) return markdown.slice(0, maxChars);
 
-/**
- * Compile messages for Gemini API format with proper roles and system instruction
- * @param {Array} messages - Array of message objects
- * @param {Object} settings - User settings
- * @returns {Object} Object with contents array and systemInstruction
- */
+  // merge overlapping windows
+  hits.sort((a,b) => a[0]-b[0]);
+  const merged = [];
+  
+  for (const h of hits) {
+    const last = merged[merged.length-1];
+    if (!last || h[0] > last[1] + 50) {
+      merged.push(h);
+    } else {
+      last[1] = Math.max(last[1], h[1]);
+    }
+  }
+
+  let out = '';
+  for (const [s,e] of merged) {
+    if (out.length >= maxChars) break;
+    out += text.slice(s, Math.min(e, s + perHitChars)) + '\n...\n';
+  }
+  
+  return out.slice(0, maxChars);
+}
+
 export function compileMessagesForGemini(messages, settings = {}) {
-  // Optional system prompt lives *outside* contents
   const systemInstruction = {
     parts: [{
       text: [
         "You are BrowseMate, a fast, reliable chat agent that runs inside a web browser.",
-        "You receive three kinds of inputs:",
-        "1) prior chat turns, 2) the user's current prompt, and 3) optional PAGE CONTEXT blocks that were actively ingested from webpages.",
+        "Inputs you receive:",
+        "1) prior chat turns, 2) the user's current prompt, and 3) PAGE CONTEXT blocks from ingested webpages.",
         "Guidelines:",
-        "- Always prefer facts from the most relevant PAGE CONTEXT blocks. Cite the source title or domain in-line (e.g., \"(source: example.com)\") when you rely on it.",
-        "- If PAGE CONTEXT conflicts, call this out and explain the divergence; prefer the most recent, specific source.",
-        "- Be concise by default; use bullet points for lists. Format code with fenced blocks.",
-        "- If the question is general and PAGE CONTEXT is irrelevant, answer normally without forcing a summary.",
-        "- Do not invent URLs or content that wasn't provided.",
-        "- When asked to summarize a page, extract the essentials (headings, key bullets, data) and avoid boilerplate.",
-        "Output should be helpful, accurate, and immediately usable."
+        "- Prefer facts from relevant PAGE CONTEXT blocks and cite their domain/title inline.",
+        "- If contexts conflict, explain the divergence and prefer the most specific, recent source.",
+        "- Summaries should be concise and structured; use bullets/tables when useful.",
+        "- Format code with fenced blocks. Do not invent content or URLs.",
+        "- If PAGE CONTEXT is irrelevant, answer normally."
       ].join('\n')
     }]
   };
 
-  // Keep messages small. Only last ~8 user/model turns + last 5 contexts (trimmed)
+  const lastUser = [...messages].reverse().find(m => m.role === 'user');
+  const query = lastUser?.text || '';
+
+  // Build role-tagged history
   const MAX_TURNS = 8;
+  const chatTurns = messages.filter(m => m.role === 'user' || m.role === 'model').slice(-MAX_TURNS);
+
+  const contextMsgs = messages.filter(m => m.role === 'context');
   const MAX_CONTEXT = 5;
-  const MAX_CONTEXT_CHARS = 3000;
+  const contexts = contextMsgs.slice(-MAX_CONTEXT).map(m => {
+    // Prefer query-aware slices from full markdown; fallback to essential
+    const excerpt = m.markdown
+      ? pickRelevantSnippets(query, m.markdown, { perHitChars: 1200, maxChars: 6000 })
+      : (m.essentialMarkdown || '').slice(0, 6000);
 
-  const chatHistory = [];
-  const userAndModel = messages.filter(m => m.role === 'user' || m.role === 'model').slice(-MAX_TURNS);
-  const contexts = messages
-    .filter(m => m.role === 'context')
-    .slice(-MAX_CONTEXT)
-    .map(m => {
-      // Prefer essential markdown if present, else fall back
-      const md = (m.essentialMarkdown || m.markdown || m.text || '').slice(0, MAX_CONTEXT_CHARS);
-      const header = `PAGE CONTEXT — ${m.title || 'Untitled'} (${m.url || 'Unknown'}) — captured ${m.timestamp || ''}`;
-      return { role: 'user', parts: [{ text: `${header}\n\n${md}` }] };
-    });
-
-  userAndModel.forEach(m => {
-    if (m.role === 'user') chatHistory.push({ role: 'user', parts: [{ text: m.text }] });
-    if (m.role === 'model') chatHistory.push({ role: 'model', parts: [{ text: m.text }] });
+    const hdr = `PAGE CONTEXT — ${m.title || 'Untitled'} (${m.url || ''}) — captured ${m.timestamp || ''}`;
+    return { role: 'user', parts: [{ text: `${hdr}\n\n${excerpt}` }] };
   });
 
-  const contents = [...contexts, ...chatHistory];
-  return { contents, systemInstruction };
+  const history = chatTurns.map(m => ({
+    role: m.role,
+    parts: [{ text: m.text }]
+  }));
+
+  return { contents: [...contexts, ...history], systemInstruction };
 }
 
 /**
@@ -100,6 +121,7 @@ export async function callGemini({ apiKey, contents, systemInstruction, generati
   const config = generationConfig || DEFAULT_GENERATION_CONFIG;
   
   return await retryWithBackoff(async () => {
+    console.log("Calling Gemini API with below contents: ", contents);
     return await makeGeminiRequest(apiKey, contents, systemInstruction, config);
   });
 }
@@ -113,6 +135,18 @@ export async function callGemini({ apiKey, contents, systemInstruction, generati
  * @returns {Promise<Object>} API response
  */
 async function makeGeminiRequest(apiKey, contents, systemInstruction, generationConfig) {
+  // Log the request being sent to Gemini
+  console.log('🤖 Sending request to Gemini:', {
+    url: GEMINI_API_ENDPOINT,
+    contents: contents.map(c => ({
+      role: c.role,
+      textLength: c.parts?.[0]?.text?.length || 0,
+      text: c.parts?.[0]?.text
+    })),
+    systemInstruction: systemInstruction?.parts?.[0]?.text,
+    generationConfig
+  });
+
   const response = await fetch(GEMINI_API_ENDPOINT, {
     method: 'POST',
     headers: {

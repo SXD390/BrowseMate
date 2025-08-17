@@ -277,6 +277,15 @@ class CedricPanel {
       const response = await chrome.runtime.sendMessage({ type: 'EXTRACT_CONTENT' });
       if (response.error) throw new Error(response.error);
 
+      // Log the ingested content
+      console.log('📥 Content ingested from page:', {
+        title: response.title,
+        url: response.url,
+        markdownLength: response.markdown?.length || 0,
+        essentialLength: response.essentialMarkdown?.length || 0,
+        isFallback: response.isFallback || false
+      });
+
       const session = await SessionStorage.getSession(this.currentSessionId);
       if (!session) throw new Error('Session not found');
 
@@ -312,13 +321,13 @@ class CedricPanel {
 
       await SessionStorage.addMessage(this.currentSessionId, contextMessage);
       await this.loadSessionMessages(this.currentSessionId);
-      
+
       // Update sources list
       await this.renderSources();
 
       this.showToast(`Ingested content from ${contextMessage.domain}`, 'success');
-    } catch (error) {
-      console.error('Failed to ingest page:', error);
+    } catch (err) {
+      console.error('Failed to ingest page:', err);
       this.showToast('Failed to ingest page content', 'error');
     } finally {
       this.ingestBtn.disabled = false;

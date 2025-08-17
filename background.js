@@ -1,29 +1,16 @@
-// Service worker for Cedric AI Side Panel
-// Handles side panel setup and icon click behavior
+// Background service worker for Cedric AI Side Panel
+// Handles side panel initialization and content extraction requests
 
 // Initialize side panel when extension loads
 chrome.runtime.onInstalled.addListener(() => {
-  console.log('Cedric AI Side Panel installed');
-  
-  // Set up side panel options
   if (chrome.sidePanel) {
-    chrome.sidePanel.setOptions({
-      path: 'panel.html',
-      enabled: true
-    });
-    
-    // Configure panel to open when action icon is clicked
-    chrome.sidePanel.setPanelBehavior({
-      openPanelOnActionClick: true
-    });
+    chrome.sidePanel.setOptions({ path: 'panel.html', enabled: true });
+    chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
   }
 });
 
 // Handle extension icon click
 chrome.action.onClicked.addListener(async (tab) => {
-  console.log('Extension icon clicked, opening side panel');
-  
-  // Ensure side panel is open
   if (chrome.sidePanel) {
     try {
       await chrome.sidePanel.open({ windowId: tab.windowId });
@@ -35,131 +22,110 @@ chrome.action.onClicked.addListener(async (tab) => {
 
 // Listen for messages from content scripts and panel
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.type === 'GET_ACTIVE_TAB') {
-    // Return info about the currently active tab
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0]) {
-        sendResponse({
-          id: tabs[0].id,
-          url: tabs[0].url,
-          title: tabs[0].title
-        });
-      } else {
-        sendResponse({ error: 'No active tab found' });
-      }
-    });
-    return true; // Keep message channel open for async response
-  }
-  
   if (request.type === 'EXTRACT_CONTENT') {
-    // Handle content extraction request
+    // Forward the request to the active tab's content script
     chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
-      if (tabs[0] && tabs[0].url) {
+      if (tabs[0] && tabs[0].url && 
+          !tabs[0].url.startsWith('chrome://') && 
+          !tabs[0].url.startsWith('chrome-extension://')) {
         try {
-          // Check if we can inject content script
-          if (tabs[0].url.startsWith('chrome://') || tabs[0].url.startsWith('chrome-extension://')) {
-            sendResponse({ error: 'Cannot extract content from protected URLs' });
-            return;
-          }
-          
-          // Inject content script and extract content
-          const results = await chrome.scripting.executeScript({
+          // First, ensure content script is injected
+          await chrome.scripting.executeScript({
             target: { tabId: tabs[0].id },
-            function: extractPageContent
+            files: ['content.js']
           });
           
-          if (results && results[0] && results[0].result) {
-            sendResponse(results[0].result);
-          } else {
-            sendResponse({ error: 'Failed to extract content' });
-          }
+          // Wait a moment for the script to initialize
+          await new Promise(resolve => setTimeout(resolve, 200));
+          
+          // Now send message to content script for extraction
+          const response = await chrome.tabs.sendMessage(tabs[0].id, { type: 'EXTRACT_CONTENT' });
+          sendResponse(response);
         } catch (error) {
-          console.error('Content extraction error:', error);
-          sendResponse({ error: 'Failed to extract content: ' + error.message });
+          console.error('Content extraction failed:', error);
+          
+          // If content script injection fails, try fallback extraction
+          try {
+            const fallbackResult = await extractContentFallback(tabs[0]);
+            sendResponse(fallbackResult);
+          } catch (fallbackError) {
+            console.error('Fallback extraction also failed:', fallbackError);
+            sendResponse({ 
+              error: 'Failed to extract content: ' + error.message,
+              title: tabs[0].title || '',
+              url: tabs[0].url,
+              timestamp: new Date().toISOString()
+            });
+          }
         }
       } else {
-        sendResponse({ error: 'No active tab found' });
+        sendResponse({ 
+          error: 'No active tab found or protected URL',
+          title: '',
+          url: '',
+          timestamp: new Date().toISOString()
+        });
       }
     });
     return true; // Keep message channel open for async response
   }
 });
 
-// Content extraction function that will be injected into the page
-function extractPageContent() {
+// Fallback content extraction using injected script
+async function extractContentFallback(tab) {
   try {
-    const title = document.title || '';
-    const url = window.location.href;
-
-    // Prefer a main/article region; fallback to body
-    const selectors = ['main','article','[role="main"]','.main-content','.content','#content','#main'];
-    let root = selectors.map(s => document.querySelector(s)).find(Boolean) || document.body;
-
-    // Clone & strip noise
-    const clone = root.cloneNode(true);
-    clone.querySelectorAll('script,style,noscript,nav,footer,aside,.nav,.footer,.sidebar,.ad,.advertisement').forEach(el => el.remove());
-
-    // Convert DOM → very lightweight markdown (h1–h3, p, li, a, code)
-    const toMarkdown = (node) => {
-      const blocks = [];
-      const walk = (el) => {
-        const tag = (el.tagName || '').toLowerCase();
-        if (tag === 'h1' || tag === 'h2' || tag === 'h3') {
-          const lvl = tag === 'h1' ? '#' : tag === 'h2' ? '##' : '###';
-          blocks.push(`${lvl} ${el.textContent.trim()}\n`);
-        } else if (tag === 'p') {
-          blocks.push(`${inline(el).trim()}\n`);
-        } else if (tag === 'li') {
-          blocks.push(`- ${inline(el).trim()}\n`);
-        } else {
-          Array.from(el.children).forEach(walk);
-        }
-      };
-      const inline = (el) => {
-        return Array.from(el.childNodes).map(n => {
-          if (n.nodeType === Node.TEXT_NODE) return n.nodeValue;
-          if (n.nodeType === Node.ELEMENT_NODE) {
-            const t = n.tagName.toLowerCase();
-            if (t === 'code') return '`' + n.textContent + '`';
-            if (t === 'strong' || t === 'b') return '**' + inline(n) + '**';
-            if (t === 'em' || t === 'i') return '*' + inline(n) + '*';
-            if (t === 'a') {
-              const href = n.getAttribute('href') || '#';
-              return `[${n.textContent}](${href})`;
-            }
-            return inline(n);
-          }
-          return '';
-        }).join('');
-      };
-      walk(node);
-      return blocks.join('\n').replace(/\n{3,}/g, '\n\n').trim();
-    };
-
-    const markdown = toMarkdown(clone);
-
-    // "Essential bits": keep headings + first paragraphs, up to ~3000 chars
-    let essentialMarkdown = markdown.split('\n')
-      .filter(line => line.startsWith('#') || line.trim().length > 0)
-      .slice(0, 300)                      // rough cap on lines
-      .join('\n')
-      .slice(0, 3000);
-
-    if (!essentialMarkdown) essentialMarkdown = (clone.textContent || '').trim().slice(0, 3000);
-
-    return {
-      title,
-      url,
-      timestamp: new Date().toISOString(),
-      markdown,
-      essentialMarkdown
-    };
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      function: () => {
+        // Basic content extraction fallback
+        const title = document.title || '';
+        const url = location.href;
+        
+        // Try to find main content
+        const selectors = ['main', 'article', '[role="main"]', '.main-content', '.content', '#content', '#main'];
+        let root = selectors.map(s => document.querySelector(s)).find(Boolean) || document.body;
+        
+        // Clone and clean
+        const clone = root.cloneNode(true);
+        clone.querySelectorAll('script,style,noscript,nav,footer,aside,.nav,.footer,.sidebar,.ad,.advertisement').forEach(el => el.remove());
+        
+        // Extract text
+        const text = clone.textContent || '';
+        const cleanText = text.replace(/\s+/g, ' ').trim();
+        
+        // Check if it's a PDF
+        const isPdf = document.contentType === 'application/pdf' || /\.pdf($|[?#])/i.test(url);
+        
+        return {
+          title,
+          url,
+          timestamp: new Date().toISOString(),
+          markdown: isPdf ? 'PDF content (fallback extraction)' : cleanText,
+          essentialMarkdown: cleanText.slice(0, isPdf ? 16000 : 12000),
+          isFallback: true
+        };
+      }
+    });
+    
+    if (results && results[0] && results[0].result) {
+      const result = results[0].result;
+      
+      // Log extracted content from fallback
+      console.log('📄 Page data extracted (FALLBACK). These are the contents:', {
+        title: result.title,
+        url: result.url,
+        markdownLength: result.markdown?.length || 0,
+        essentialLength: result.essentialMarkdown?.length || 0,
+        markdown: result.markdown,
+        essentialMarkdown: result.essentialMarkdown,
+        isFallback: result.isFallback
+      });
+      
+      return result;
+    } else {
+      throw new Error('Fallback extraction returned no results');
+    }
   } catch (error) {
-    return {
-      error: 'Failed to extract content: ' + error.message,
-      title: document.title || '',
-      url: window.location.href,
-      timestamp: new Date().toISOString()
-    };
+    throw new Error('Fallback extraction failed: ' + error.message);
   }
 }
