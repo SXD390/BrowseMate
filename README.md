@@ -57,7 +57,7 @@ Create a key in Google AI Studio. Keep it private.
 ### 2) Load the extension
 
 1. Visit `chrome://extensions` → toggle **Developer mode**.
-2. Click **Load unpacked** → select the `extension/` folder.
+2. Clone this repository and place all the files under a folder, example - 'extension'. Click **Load unpacked** → select the `extension/` folder. 
 3. Pin **BrowseMate** to your toolbar.
 
 ### 3) First‑run setup
