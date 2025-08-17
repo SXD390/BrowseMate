@@ -1,8 +1,8 @@
 // Gemini API integration for Cedric AI Side Panel
 // Handles API calls to Google's Gemini model with proper error handling
 
-const GEMINI_API_ENDPOINT =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+const GEMINI_API_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta";
 
 const DEFAULT_GENERATION_CONFIG = { thinkingConfig: { thinkingBudget: 0 } };
 
@@ -287,4 +287,40 @@ export async function testApiKey(apiKey) {
     console.error('API key test failed:', error);
     return false;
   }
+}
+
+// Count tokens for a request payload
+export async function countTokens({ apiKey, model = "models/gemini-2.0-flash", contents, systemInstruction }) {
+  if (!apiKey) throw new Error("API key is required");
+  if (!Array.isArray(contents) || contents.length === 0) return 0;
+
+  const res = await fetch(`${GEMINI_BASE}/${model}:countTokens`, {
+    method: "POST",
+    headers: { "x-goog-api-key": apiKey, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents,
+      ...(systemInstruction ? { systemInstruction } : {})
+    }),
+  });
+
+  if (!res.ok) {
+    // fall back to a local estimate if counting fails
+    const text = await res.text().catch(() => "");
+    console.warn("countTokens error", res.status, text);
+    const approx = contents.map(c => c.parts?.map(p => p.text || "").join(" ") || "")
+                           .join("\n").length;
+    return Math.ceil(approx / 4); // ~4 chars ≈ 1 token
+  }
+
+  const data = await res.json();
+  return data.totalTokens ?? 0;
+}
+
+// Compile messages for counting (includes draft text)
+export function compileForCounting(messages, draftUserText = "") {
+  const base = compileMessagesForGemini(messages); // your existing compiler
+  if (draftUserText && draftUserText.trim()) {
+    base.contents.push({ role: "user", parts: [{ text: draftUserText }] });
+  }
+  return base; // { contents, systemInstruction }
 }

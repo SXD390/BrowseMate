@@ -2,7 +2,7 @@
 // Handles UI interactions, session management, and Gemini API integration
 
 import { SessionStorage, SettingsStorage, STORAGE_KEYS } from './storage.js';
-import { callGemini, parseGeminiResponse, compileMessagesForGemini, testApiKey } from './gemini.js';
+import { callGemini, parseGeminiResponse, compileMessagesForGemini, testApiKey, compileForCounting, countTokens } from './gemini.js';
 
 // Render model text as markdown safely
 function renderMarkdown(mdText = '') {
@@ -16,11 +16,25 @@ function renderMarkdown(mdText = '') {
   return clean;
 }
 
+// Token limits for models you support (from Google docs)
+const MODEL_TOKEN_LIMITS = {
+  "models/gemini-2.0-flash": 1048576,
+  "models/gemini-2.0-flash-lite": 1048576,
+  "models/gemini-2.5-flash": 1048576,
+  "models/gemini-2.5-flash-lite": 1048576,
+};
+
+// default if not found
+function getModelLimit(modelId) {
+  return MODEL_TOKEN_LIMITS[modelId] ?? 1048576;
+}
+
 class BrowseMatePanel {
   constructor() {
     this.currentSessionId = null;
     this.isLoading = false;
     this.settings = {};
+    this.debounceTimer = null;
     
     this.initializeElements();
     this.bindEvents();
@@ -69,6 +83,9 @@ class BrowseMatePanel {
     
     // Toast container
     this.toastContainer = document.getElementById('toastContainer');
+    
+    // Overall token counter
+    this.overallTokens = document.getElementById('overallTokens');
   }
 
   // Bind event listeners
@@ -126,6 +143,9 @@ class BrowseMatePanel {
       
       // Check if side panel API is available
       this.checkSidePanelSupport();
+      
+      // Calculate initial overall token count
+      this.scheduleRecount();
       
     } catch (error) {
       console.error('Failed to initialize panel:', error);
@@ -295,6 +315,9 @@ class BrowseMatePanel {
       
       // Maintain layout constraints after loading messages
       this.maintainLayoutConstraints();
+      
+      // Recalculate overall tokens after loading session messages
+      this.scheduleRecount();
     } catch (error) {
       console.error('Failed to load session messages:', error);
     }
@@ -372,6 +395,9 @@ class BrowseMatePanel {
       
       // Maintain layout constraints after ingestion
       this.maintainLayoutConstraints();
+      
+      // Recalculate overall tokens after ingestion
+      this.scheduleRecount();
 
       this.showToast(`Ingested content from ${contextMessage.domain}`, 'success');
     } catch (err) {
@@ -422,6 +448,9 @@ class BrowseMatePanel {
     } else {
       this.input.style.overflowY = 'hidden';
     }
+    
+    // Schedule overall token recount (debounced)
+    this.scheduleRecount();
   }
 
   // Show tokens
@@ -497,6 +526,9 @@ class BrowseMatePanel {
       
       // Display model response
       this.addMessageToUI(modelMessage);
+      
+      // Recalculate overall tokens after adding model response
+      this.scheduleRecount();
       
     } catch (error) {
       console.error('Failed to send message:', error);
@@ -814,6 +846,43 @@ class BrowseMatePanel {
         toast.remove();
       }
     }, 5000);
+  }
+
+  // Recalculate overall tokens (includes draft input)
+  async recalculateOverallTokens() {
+    try {
+      const apiKey = await SettingsStorage.getApiKey();
+      const session = await SessionStorage.getSession(this.currentSessionId);
+      if (!apiKey || !session) return;
+
+      // include the current draft input so the number moves as you type
+      const draft = (this.input?.value || "").trim();
+      const compiled = compileForCounting(session.messages, draft);
+
+      const modelId = this.settings?.modelId || "models/gemini-2.0-flash";
+      const total = await countTokens({
+        apiKey,
+        model: modelId,
+        contents: compiled.contents,
+        systemInstruction: compiled.systemInstruction
+      });
+
+      const limit = getModelLimit(modelId);
+      const pct = total / limit;
+
+      this.overallTokens.textContent = `${total.toLocaleString()} / ${limit.toLocaleString()}`;
+
+      this.overallTokens.classList.toggle("warn", pct >= 0.9 && pct < 1);
+      this.overallTokens.classList.toggle("error", pct >= 1.0);
+    } catch (e) {
+      console.warn("token recompute failed", e);
+    }
+  }
+
+  // Debounce token recount to avoid hammering the API while typing
+  scheduleRecount() {
+    clearTimeout(this.debounceTimer);
+    this.debounceTimer = setTimeout(() => this.recalculateOverallTokens(), 400);
   }
 }
 

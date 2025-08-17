@@ -455,6 +455,10 @@ body {
   gap: 12px;
 }
 
+.composer-bar .spacer {
+  flex: 1 1 auto;
+}
+
 .token-count {
   font-size: 12px;
   padding: 6px 8px;
@@ -462,6 +466,26 @@ body {
   background: rgba(255,255,255,0.06);
   border: 1px solid var(--border-color);
   color: var(--text-secondary);
+}
+
+.overall-count {
+  font-size: 12px;
+  padding: 6px 8px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.overall-count.warn {
+  color: #ffcf66;
+  border-color: #ffcf66;
+}
+
+.overall-count.error {
+  color: #ff7a7a;
+  border-color: #ff7a7a;
 }
 
 .send-btn {

@@ -1,170 +1,159 @@
-# BrowseMate — AI Side Panel
+=# 🧭 BrowseMate — AI Side Panel (Chrome MV3)
 
-A Chrome extension that provides an AI-powered side panel for summarizing and chatting about web pages using Google Gemini.
+> **A persistent, right-side panel that ingests webpages/PDFs, chats with Gemini, and renders beautiful Markdown answers.**
 
-## Features
-
-- **Persistent Side Panel**: Right-side panel that stays open across tab switches
-- **AI Chat**: Interactive chat with Google Gemini AI
-- **Page Ingestion**: Extract and analyze web page content
-- **Session Management**: Multiple chat sessions with history
-- **PDF Support**: Full text extraction from PDF documents
-- **Smart Context**: Query-aware content selection for better responses
-
-## Installation
-
-1. **Clone or download** this repository
-2. **Open Chrome** and navigate to `chrome://extensions/`
-3. **Enable Developer mode** (toggle in top-right)
-4. **Click "Load unpacked"** and select the `extension` folder
-5. **Pin the extension** to your toolbar for easy access
-
-## Setup
-
-1. **Get a Gemini API Key**:
-   - Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
-   - Create a new API key
-   - Copy the key
-
-2. **Configure BrowseMate**:
-   - Click the BrowseMate extension icon
-   - Click the settings gear (⚙️)
-   - Paste your API key and click "Test"
-   - Save settings
-
-## Usage
-
-### Basic Chat
-- Click the BrowseMate extension icon to open the side panel
-- Type your question in the chat box
-- Press Enter or click Send to get an AI response
-
-### Page Ingestion
-- Navigate to any web page you want to discuss
-- Click "Ingest this web page" in the BrowseMate panel
-- The page content is now available for AI analysis
-- Ask questions about the ingested content
-
-### Session Management
-- **Switch Sessions**: Use the dropdown to switch between different chat sessions
-- **New Session**: Click the "+" button to start a fresh conversation
-- **Export/Import**: Save and restore your chat sessions
-
-### Sources Tab
-- View all ingested pages for the current session
-- Open or remove sources as needed
-- See timestamps and page titles
-
-## Architecture
-
-### Core Components
-- **`panel.html/js`**: Main UI and user interactions
-- **`background.js`**: Service worker for content extraction
-- **`content.js`**: Injected into web pages for content extraction
-- **`gemini.js`**: Gemini API integration and message compilation
-- **`storage.js`**: Local storage management for sessions and settings
-
-### Content Extraction
-- **HTML Pages**: Intelligent DOM parsing with noise removal
-- **PDF Documents**: Full text extraction using PDF.js
-- **Markdown Conversion**: Clean, structured content format
-- **Smart Slicing**: Query-aware context selection
-
-### AI Integration
-- **Direct API Calls**: No proxy server required
-- **Context Management**: Intelligent message compilation
-- **Error Handling**: Clear error messages and retry logic
-- **Token Optimization**: Efficient prompt construction
-
-## Development
-
-### Project Structure
-```
-extension/
-├── manifest.json          # Extension configuration
-├── panel.html            # Main UI structure
-├── panel.css             # Styling and layout
-├── panel.js              # UI logic and interactions
-├── background.js         # Service worker
-├── content.js            # Content script
-├── gemini.js             # AI API integration
-├── storage.js            # Data persistence
-├── vendor/pdfjs/         # PDF processing library
-└── assets/               # Icons and resources
-```
-
-### Key Technologies
-- **Chrome Extension Manifest V3**
-- **Chrome Side Panel API**
-- **Google Gemini AI API**
-- **PDF.js for document processing**
-- **Modern ES6+ JavaScript**
-
-### Development Setup
-1. **Load the extension** in Chrome as described above
-2. **Make changes** to source files
-3. **Reload the extension** in `chrome://extensions/`
-4. **Test changes** in the side panel
-
-### Debugging
-- **Console Logs**: Check browser console for debugging info
-- **Extension Errors**: View errors in `chrome://extensions/`
-- **Content Scripts**: Use browser dev tools on target pages
-- **Background Script**: Check service worker logs
-
-## Troubleshooting
-
-### Common Issues
-
-**"API key not set"**
-- Ensure you've entered your Gemini API key in settings
-- Verify the key is valid by testing it
-
-**"Failed to extract content"**
-- Check if the page is protected (chrome://, chrome-extension://)
-- Ensure the page has fully loaded
-- Try refreshing the page and ingesting again
-
-**"Could not establish connection"**
-- Reload the extension in `chrome://extensions/`
-- Check if the target page has any content blocking
-
-**PDF extraction issues**
-- Ensure the PDF is publicly accessible
-- Check browser console for PDF.js errors
-- Verify the PDF isn't password-protected
-
-### Performance Tips
-- **Limit context**: Don't ingest too many pages in one session
-- **Clear sessions**: Remove old sessions to free up storage
-- **API limits**: Be mindful of Gemini API rate limits
-
-## Security
-
-- **Local Storage**: All data is stored locally in your browser
-- **No Proxy**: Direct communication with Google Gemini API
-- **API Key**: Your API key is stored locally and never shared
-- **Content Access**: Only extracts content from pages you explicitly ingest
-
-## Contributing
-
-1. **Fork the repository**
-2. **Create a feature branch**
-3. **Make your changes**
-4. **Test thoroughly**
-5. **Submit a pull request**
-
-## License
-
-This project is open source and available under the [MIT License](LICENSE).
-
-## Support
-
-For issues, questions, or contributions:
-- **GitHub Issues**: Report bugs or request features
-- **Documentation**: Check this README and code comments
-- **Community**: Contribute improvements and share ideas
+<p align="center">
+  <img src="https://img.shields.io/badge/Chrome-Manifest%20V3-4285F4?style=for-the-badge&logo=google-chrome&logoColor=white" />
+  <img src="https://img.shields.io/badge/LLM-Gemini%202.x%20Flash-7B73FF?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Context-Ingest%20Web+PDF-10B981?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Render-Markdown-9333EA?style=for-the-badge" />
+</p>
 
 ---
 
-**BrowseMate** — Making web browsing smarter with AI assistance. 🚀
+## ✨ Features
+
+* **Persistent Side Panel** — opens from the extensions toolbar and stays open across tab switches until you close it.
+* **Gemini-Powered Chat** — all answers come from Gemini (2.0/2.5 Flash). System prompt tuned for in‑browser assistance.
+* **Ingest Webpages & PDFs** — one‑click "Ingest this web page" captures HTML **and** PDFs (via pdf.js) as **Markdown**; deduped per session by URL.
+* **Context-Aware Prompts** — RAG‑lite compiler sends relevant slices of ingested sources based on your current question.
+* **Sessions** — multiple chat sessions with full turn history. Import/Export supported.
+* **Markdown Answers** — responses render as sanitized Markdown (tables, lists, code blocks, links). Optional syntax highlighting.
+* **Token Insights** — bottom‑right shows **overall tokens X / limit** using Gemini’s `:countTokens`. Left chip shows draft input tokens.
+* **Sources Tab** — view, open, or remove ingested URLs for the active session.
+* **Keyboard UX** — ⌘/Ctrl+Enter to send; textarea auto‑sizes without hiding the Send button.
+* **Privacy‑First** — no server; your API key and data live in Chrome storage.
+
+---
+
+## 🧩 Architecture
+
+```
+extension/
+├── manifest.json           # MV3 + Side Panel + permissions
+├── background.js           # registers side panel; message router
+├── panel.html/.css/.js     # UI, sessions, tabs, composer, toasts
+├── content.js              # DOM/PDF extraction → Markdown (+ essential slices)
+├── gemini.js               # request compiler, countTokens, generateContent
+├── storage.js              # namespaced SettingsStorage/SessionStorage
+├── assets/                 # icons (16/48/128)
+└── vendor/                 # marked, DOMPurify, highlight.js, pdfjs
+```
+
+**Key flows**
+
+* **Ingest**: `panel.js` → `runtime.sendMessage(EXTRACT_CONTENT)` → `content.js` extracts (HTML→MD or PDF→MD) → session saves a `context` message (with `markdown` & `essentialMarkdown`).
+* **Send**: `panel.js` compiles **systemInstruction + recent chat + query‑aware context slices** via `gemini.js` → calls `generateContent` → renders Markdown.
+* **Tokens**: `panel.js` calls `countTokens` with the **exact payload** (including draft input) → updates `X / LIMIT` badge.
+
+---
+
+## 🚀 Quick Start
+
+### 1) Get a Gemini API key
+
+Create a key in Google AI Studio. Keep it private.
+
+### 2) Install vendor files (no bundler required)
+
+We vendor tiny client‑side libs for Markdown rendering and PDF text extraction.
+
+**Node (macOS/Linux):**
+
+```bash
+npm i marked dompurify highlight.js pdfjs-dist --save-dev
+mkdir -p extension/vendor/{marked,dompurify,highlightjs,pdfjs}
+cp node_modules/marked/marked.min.js extension/vendor/marked/
+cp node_modules/dompurify/dist/purify.min.js extension/vendor/dompurify/
+cp node_modules/highlight.js/lib/common.min.js extension/vendor/highlightjs/highlight.min.js
+cp node_modules/highlight.js/styles/github-dark.min.css extension/vendor/highlightjs/
+cp node_modules/pdfjs-dist/build/pdf.mjs extension/vendor/pdfjs/pdf.mjs
+cp node_modules/pdfjs-dist/build/pdf.worker.mjs extension/vendor/pdfjs/pdf.worker.mjs
+```
+
+**PowerShell (Windows):**
+
+```powershell
+npm i marked dompurify highlight.js pdfjs-dist --save-dev
+New-Item -ItemType Directory extension/vendor/marked,extension/vendor/dompurify,extension/vendor/highlightjs,extension/vendor/pdfjs -Force | Out-Null
+Copy-Item node_modules/marked/marked.min.js extension/vendor/marked/
+Copy-Item node_modules/dompurify/dist/purify.min.js extension/vendor/dompurify/
+Copy-Item node_modules/highlight.js/lib/common.min.js extension/vendor/highlightjs/highlight.min.js
+Copy-Item node_modules/highlight.js/styles/github-dark.min.css extension/vendor/highlightjs/
+Copy-Item node_modules/pdfjs-dist/build/pdf.mjs extension/vendor/pdfjs/pdf.mjs
+Copy-Item node_modules/pdfjs-dist/build/pdf.worker.mjs extension/vendor/pdfjs/pdf.worker.mjs
+```
+
+> If you don’t need syntax highlighting, you can skip the `highlight.js` lines.
+
+### 3) Load the extension
+
+1. Visit `chrome://extensions` → toggle **Developer mode**.
+2. Click **Load unpacked** → select the `extension/` folder.
+3. Pin **BrowseMate** to your toolbar.
+
+### 4) First‑run setup
+
+* Click the icon → the side panel opens.
+* Open **Settings** (gear) → paste your **Gemini API key**. Optionally pick a model ID (defaults to `models/gemini-2.0-flash`).
+
+### 5) Use it
+
+* **Chat:** type and press ⌘/Ctrl+Enter or **Send**.
+* **Ingest:** click **Ingest this web page**. In PDFs, BrowseMate extracts the text via pdf.js.
+* **Sources tab:** review ingested pages; open or remove them.
+* **Tokens:** bottom‑right shows **overall X / LIMIT**; it updates live as you type or ingest.
+
+---
+
+## ⚙️ Configuration
+
+Adjust these constants in code (search the file noted):
+
+* **Default model** — `panel.js` / settings: `models/gemini-2.0-flash`
+* **Token limits** — `panel.js` → `MODEL_TOKEN_LIMITS` (e.g., 1,048,576 for 2.0/2.5 Flash)
+* **RAG‑lite window sizes** — `gemini.js` → `pickRelevantSnippets()` (`perHitChars`, `maxChars`)
+* **Context caps** — `gemini.js` → `MAX_CONTEXT`, `MAX_TURNS`
+* **Storage key prefix** — `storage.js` (defaults to `bm_*`, with migration from older `cedric_*` keys)
+
+---
+
+## 🛡️ Security & Privacy
+
+* **No proxy server** — API calls are made directly to Google’s endpoint from the extension.
+* **Local storage** — API key, sessions, and ingested content are stored in `chrome.storage.local`.
+* **Sanitized HTML** — LLM Markdown is sanitized with **DOMPurify**. Links open with `rel="noopener noreferrer"`.
+* **CSP‑friendly** — no inline scripts; vendor libraries load from the extension package.
+
+---
+
+## 🧠 System Prompt (summary)
+
+> You are **BrowseMate**, a fast, reliable chat agent that runs inside a web browser. You receive prior chat turns, the current prompt, and optional **PAGE CONTEXT** blocks from ingested webpages/PDFs. Prefer facts from relevant contexts (cite source title/domain). If contexts conflict, note the divergence and prefer specific, recent sources. Be concise; use bullets/tables when helpful; format code with fenced blocks; don’t invent content/URLs. If context isn’t relevant, answer normally.
+
+(See `gemini.js` for the exact `systemInstruction`.)
+
+---
+
+## 🔍 Token Accounting
+
+* **Overall counter** uses the official `models:countTokens` endpoint with the **exact** payload that will be sent (system + contexts + history + draft input). Updates live while typing.
+* **Draft counter** (left) is a light heuristic for the composer only.
+* **Limits**: default map contains 1,048,576 tokens for Flash models; adjust if Google updates the limits.
+* When nearing the limit (≥90%), the counter turns **amber**; at ≥100% it turns **red** and you should trim sources or reduce history.
+
+---
+
+## 🧪 Troubleshooting
+
+* **Side panel doesn’t persist:** ensure Chrome supports the **Side Panel API**; update to the latest stable.
+* **Invalid request / 4xx from Gemini:** verify API key, model ID, and that `contents` include at least one `user` role.
+* **Token count fails:** we fall back to an approximate `chars ÷ 4`. Check DevTools → Console for the exact error.
+* **PDF not extracted:** some domains block fetch. The extension fetches directly; if blocked, open the PDF in a new tab and try again.
+* **Hit token limit:** open **Sources** and remove older pages; or reduce MAX\_TURNS / MAX\_CONTEXT in `gemini.js`.
+
+---
+
+## 📄 License
+
+MIT — see `LICENSE`.
