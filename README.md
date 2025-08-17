@@ -1,205 +1,170 @@
-# Cedric — AI Side Panel
+# BrowseMate — AI Side Panel
 
-A Chrome Extension that provides an AI-powered side panel for web browsing, powered by Google Gemini. Cedric helps you summarize web pages, answer questions, and maintain conversation context across your browsing sessions.
+A Chrome extension that provides an AI-powered side panel for summarizing and chatting about web pages using Google Gemini.
 
 ## Features
 
-- **Persistent Side Panel**: Opens from the extensions toolbar and stays open across tab switches
-- **AI Chat Interface**: Powered by Google Gemini 2.5 Flash model
-- **Page Content Ingestion**: Click "Ingest this web page" to add current page content to conversation context
-- **Session Management**: Create and manage multiple chat sessions
-- **Local Storage**: All data stored locally in your browser
-- **No Server Required**: Direct integration with Gemini API
-
-## Requirements
-
-- Chrome browser version 114 or higher (for Side Panel API support)
-- Google Gemini API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
+- **Persistent Side Panel**: Right-side panel that stays open across tab switches
+- **AI Chat**: Interactive chat with Google Gemini AI
+- **Page Ingestion**: Extract and analyze web page content
+- **Session Management**: Multiple chat sessions with history
+- **PDF Support**: Full text extraction from PDF documents
+- **Smart Context**: Query-aware content selection for better responses
 
 ## Installation
 
-### 1. Download the Extension
+1. **Clone or download** this repository
+2. **Open Chrome** and navigate to `chrome://extensions/`
+3. **Enable Developer mode** (toggle in top-right)
+4. **Click "Load unpacked"** and select the `extension` folder
+5. **Pin the extension** to your toolbar for easy access
 
-1. Clone or download this repository
-2. Navigate to the `extension` folder
+## Setup
 
-### 2. Add Icon Files
+1. **Get a Gemini API Key**:
+   - Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
+   - Create a new API key
+   - Copy the key
 
-Replace the placeholder files in the `assets` folder with actual PNG icons:
-- `icon16.png` (16x16 pixels)
-- `icon48.png` (48x48 pixels)  
-- `icon128.png` (128x128 pixels)
-
-You can create simple icons using any image editor or online icon generator.
-
-### 3. Load as Unpacked Extension
-
-1. Open Chrome and navigate to `chrome://extensions/`
-2. Enable "Developer mode" in the top right corner
-3. Click "Load unpacked"
-4. Select the `extension` folder
-5. The extension should now appear in your extensions list
-
-### 4. Set Up Your API Key
-
-1. Click the Cedric extension icon in your toolbar
-2. Click the gear icon (⚙️) to open settings
-3. Enter your Gemini API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
-4. Click "Test" to verify your API key
-5. Click outside the modal to save
+2. **Configure BrowseMate**:
+   - Click the BrowseMate extension icon
+   - Click the settings gear (⚙️)
+   - Paste your API key and click "Test"
+   - Save settings
 
 ## Usage
 
-### Opening the Side Panel
+### Basic Chat
+- Click the BrowseMate extension icon to open the side panel
+- Type your question in the chat box
+- Press Enter or click Send to get an AI response
 
-- Click the Cedric extension icon in your Chrome toolbar
-- The side panel will open on the right side of your browser window
-- The panel persists across tab switches within the same window
+### Page Ingestion
+- Navigate to any web page you want to discuss
+- Click "Ingest this web page" in the BrowseMate panel
+- The page content is now available for AI analysis
+- Ask questions about the ingested content
 
-### Chatting with Cedric
+### Session Management
+- **Switch Sessions**: Use the dropdown to switch between different chat sessions
+- **New Session**: Click the "+" button to start a fresh conversation
+- **Export/Import**: Save and restore your chat sessions
 
-1. **Ask Questions**: Type your question in the composer at the bottom and press Enter or click Send
-2. **Keyboard Shortcuts**: 
-   - `Ctrl/Cmd + Enter`: Send message
-   - `Esc`: Clear focus from composer
-
-### Ingesting Web Page Content
-
-1. Navigate to any web page you want to discuss
-2. Click the "Ingest this web page" button in the side panel
-3. The page content will be added to your current conversation context
-4. Ask Cedric questions about the ingested content
-
-### Managing Sessions
-
-- **Create New Session**: Click the "+" button next to the session dropdown
-- **Switch Sessions**: Use the dropdown to select different sessions
-- **Export/Import**: Use the settings modal to backup or restore your conversations
-
-### Settings
-
-Access settings by clicking the gear icon (⚙️) in the panel header:
-
-- **API Key Management**: Set and test your Gemini API key
-- **URL Sharing**: Toggle whether to include current page URL in requests
-- **Data Management**: Export, import, or clear your sessions
+### Sources Tab
+- View all ingested pages for the current session
+- Open or remove sources as needed
+- See timestamps and page titles
 
 ## Architecture
 
-The extension is built using Manifest V3 with the following structure:
+### Core Components
+- **`panel.html/js`**: Main UI and user interactions
+- **`background.js`**: Service worker for content extraction
+- **`content.js`**: Injected into web pages for content extraction
+- **`gemini.js`**: Gemini API integration and message compilation
+- **`storage.js`**: Local storage management for sessions and settings
 
-```
-extension/
-├── manifest.json          # Extension configuration
-├── background.js          # Service worker for side panel setup
-├── panel.html            # Main UI structure
-├── panel.css             # Styling and layout
-├── panel.js              # Main UI logic and session management
-├── storage.js            # Chrome storage wrapper
-├── gemini.js             # Gemini API integration
-├── content.js            # Content script for page extraction
-├── assets/               # Extension icons
-│   ├── icon16.png
-│   ├── icon48.png
-│   └── icon128.png
-└── README.md             # This file
-```
+### Content Extraction
+- **HTML Pages**: Intelligent DOM parsing with noise removal
+- **PDF Documents**: Full text extraction using PDF.js
+- **Markdown Conversion**: Clean, structured content format
+- **Smart Slicing**: Query-aware context selection
 
-### Key Components
-
-- **Side Panel API**: Uses Chrome's Side Panel API for persistent panel display
-- **Content Extraction**: Intelligently extracts readable content from web pages
-- **Session Persistence**: Stores conversations locally using Chrome storage
-- **Gemini Integration**: Direct API calls to Google's Gemini model
-- **Error Handling**: Comprehensive error handling with user-friendly messages
+### AI Integration
+- **Direct API Calls**: No proxy server required
+- **Context Management**: Intelligent message compilation
+- **Error Handling**: Clear error messages and retry logic
+- **Token Optimization**: Efficient prompt construction
 
 ## Development
 
-### Prerequisites
+### Project Structure
+```
+extension/
+├── manifest.json          # Extension configuration
+├── panel.html            # Main UI structure
+├── panel.css             # Styling and layout
+├── panel.js              # UI logic and interactions
+├── background.js         # Service worker
+├── content.js            # Content script
+├── gemini.js             # AI API integration
+├── storage.js            # Data persistence
+├── vendor/pdfjs/         # PDF processing library
+└── assets/               # Icons and resources
+```
 
-- Chrome browser with developer mode enabled
-- Basic knowledge of JavaScript and Chrome Extensions
+### Key Technologies
+- **Chrome Extension Manifest V3**
+- **Chrome Side Panel API**
+- **Google Gemini AI API**
+- **PDF.js for document processing**
+- **Modern ES6+ JavaScript**
 
-### Local Development
-
-1. Make changes to the source files
-2. Go to `chrome://extensions/`
-3. Click the refresh icon on the Cedric extension
-4. Test your changes
-
-### Testing
-
-- Test on various websites to ensure content extraction works properly
-- Verify side panel persistence across tab switches
-- Test API key validation and error handling
-- Check responsive design on different panel widths
+### Development Setup
+1. **Load the extension** in Chrome as described above
+2. **Make changes** to source files
+3. **Reload the extension** in `chrome://extensions/`
+4. **Test changes** in the side panel
 
 ### Debugging
-
-- Use Chrome DevTools on the side panel (right-click → Inspect)
-- Check the background service worker console in `chrome://extensions/`
-- Monitor network requests in DevTools Network tab
+- **Console Logs**: Check browser console for debugging info
+- **Extension Errors**: View errors in `chrome://extensions/`
+- **Content Scripts**: Use browser dev tools on target pages
+- **Background Script**: Check service worker logs
 
 ## Troubleshooting
 
 ### Common Issues
 
-**Side Panel Not Opening**
-- Ensure Chrome version 114+ is installed
-- Check that the extension is properly loaded
-- Verify permissions in `chrome://extensions/`
+**"API key not set"**
+- Ensure you've entered your Gemini API key in settings
+- Verify the key is valid by testing it
 
-**API Key Errors**
-- Verify your API key is correct and active
-- Check that you have sufficient Gemini API quota
-- Ensure the key has proper permissions
+**"Failed to extract content"**
+- Check if the page is protected (chrome://, chrome-extension://)
+- Ensure the page has fully loaded
+- Try refreshing the page and ingesting again
 
-**Content Extraction Fails**
-- Some sites may block content extraction
-- Protected URLs (chrome://, chrome-extension://) cannot be processed
-- Check browser console for error messages
+**"Could not establish connection"**
+- Reload the extension in `chrome://extensions/`
+- Check if the target page has any content blocking
 
-**Panel Closes Unexpectedly**
-- The side panel should persist across tab switches
-- If it closes, try clicking the extension icon again
-- Check for any JavaScript errors in the console
+**PDF extraction issues**
+- Ensure the PDF is publicly accessible
+- Check browser console for PDF.js errors
+- Verify the PDF isn't password-protected
 
-### Getting Help
+### Performance Tips
+- **Limit context**: Don't ingest too many pages in one session
+- **Clear sessions**: Remove old sessions to free up storage
+- **API limits**: Be mindful of Gemini API rate limits
 
-1. Check the browser console for error messages
-2. Verify your Chrome version supports Side Panel API
-3. Ensure all required permissions are granted
-4. Test with a simple website first
-
-## Security & Privacy
+## Security
 
 - **Local Storage**: All data is stored locally in your browser
-- **No Server**: No data is sent to external servers except Gemini API
-- **API Key**: Your Gemini API key is stored locally and only sent to Google's servers
-- **Content Extraction**: Only extracts text content, no images or scripts are captured
+- **No Proxy**: Direct communication with Google Gemini API
+- **API Key**: Your API key is stored locally and never shared
+- **Content Access**: Only extracts content from pages you explicitly ingest
 
 ## Contributing
 
-Contributions are welcome! Please ensure:
-
-- Code follows the existing style and patterns
-- New features include proper error handling
-- UI changes maintain accessibility standards
-- All changes are tested thoroughly
+1. **Fork the repository**
+2. **Create a feature branch**
+3. **Make your changes**
+4. **Test thoroughly**
+5. **Submit a pull request**
 
 ## License
 
-This project is open source. Feel free to use, modify, and distribute as needed.
+This project is open source and available under the [MIT License](LICENSE).
 
 ## Support
 
-For issues or questions:
-
-1. Check the troubleshooting section above
-2. Review the browser console for error messages
-3. Verify your Chrome version and extension permissions
-4. Test with a fresh installation
+For issues, questions, or contributions:
+- **GitHub Issues**: Report bugs or request features
+- **Documentation**: Check this README and code comments
+- **Community**: Contribute improvements and share ideas
 
 ---
 
-**Note**: This extension requires Chrome 114+ for full Side Panel API functionality. For older versions, some features may not work as expected.
+**BrowseMate** — Making web browsing smarter with AI assistance. 🚀

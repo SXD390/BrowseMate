@@ -1,10 +1,10 @@
-// Main panel logic for Cedric AI Side Panel
+// Main panel logic for BrowseMate AI Side Panel
 // Handles UI interactions, session management, and Gemini API integration
 
 import { SessionStorage, SettingsStorage, STORAGE_KEYS } from './storage.js';
 import { callGemini, parseGeminiResponse, compileMessagesForGemini, testApiKey } from './gemini.js';
 
-class CedricPanel {
+class BrowseMatePanel {
   constructor() {
     this.currentSessionId = null;
     this.isLoading = false;
@@ -40,9 +40,9 @@ class CedricPanel {
     this.loadingIndicator = document.getElementById('loadingIndicator');
     
     // Composer elements
-    this.messageInput = document.getElementById('messageInput');
+    this.input = document.getElementById('input');
     this.sendBtn = document.getElementById('sendBtn');
-    this.tokenPill = document.getElementById('tokenPill');
+    this.tokenCount = document.getElementById('tokenCount');
     
     // Settings modal elements
     this.settingsModal = document.getElementById('settingsModal');
@@ -73,8 +73,8 @@ class CedricPanel {
     this.tabSources.addEventListener('click', () => this.switchTab('Sources'));
     
     // Composer events
-    this.messageInput.addEventListener('input', (e) => this.handleInputChange(e));
-    this.messageInput.addEventListener('keydown', (e) => this.handleKeyDown(e));
+    this.input.addEventListener('input', (e) => this.handleInputChange(e));
+    this.input.addEventListener('keydown', (e) => this.handleKeyDown(e));
     this.sendBtn.addEventListener('click', () => this.sendMessage());
     
     // Settings modal events
@@ -149,13 +149,22 @@ class CedricPanel {
     // Force layout recalculation
     this.messagesList.style.maxHeight = `calc(100vh - 200px)`;
     this.messagesList.style.overflowY = 'auto';
+    this.messagesList.style.paddingBottom = '80px'; // Account for fixed composer
     
-    // Ensure composer stays visible
+    // Ensure composer stays fixed at bottom
     const composer = document.querySelector('.composer');
     if (composer) {
-      composer.style.position = 'sticky';
+      composer.style.position = 'fixed';
       composer.style.bottom = '0';
-      composer.style.zIndex = '10';
+      composer.style.left = '0';
+      composer.style.right = '0';
+      composer.style.zIndex = '100';
+    }
+    
+    // Ensure sources list also has bottom padding
+    const sourcesList = document.querySelector('.sources-list');
+    if (sourcesList) {
+      sourcesList.style.paddingBottom = '80px';
     }
     
     // Force scroll to bottom if needed
@@ -184,12 +193,12 @@ class CedricPanel {
     if (!apiKey) {
       this.apiKeyBanner.classList.remove('hidden');
       this.ingestBtn.disabled = true;
-      this.messageInput.disabled = true;
+      this.input.disabled = true;
       this.sendBtn.disabled = true;
     } else {
       this.apiKeyBanner.classList.add('hidden');
       this.ingestBtn.disabled = false;
-      this.messageInput.disabled = false;
+      this.input.disabled = false;
       this.updateSendButtonState();
     }
   }
@@ -382,21 +391,33 @@ class CedricPanel {
   // Handle input change (character count, send button state)
   handleInputChange(event) {
     const text = event.target.value;
-    this.updateTokenCountPill();
+    this.updateTokenCount();
     this.updateSendButtonState();
     
-    // Auto-resize textarea but cap at CSS max-height so button doesn't sink
-    this.messageInput.style.height = 'auto';
-    const max = 140; // must match CSS
-    this.messageInput.style.height = Math.min(this.messageInput.scrollHeight, max) + 'px';
+    // Auto-resize textarea with proper constraints
+    this.input.style.height = 'auto';
+    const scrollHeight = this.input.scrollHeight;
+    const minHeight = 40; // matches CSS min-height
+    const maxHeight = 140; // matches CSS max-height
+    
+    // Set height within bounds
+    const newHeight = Math.max(minHeight, Math.min(scrollHeight, maxHeight));
+    this.input.style.height = newHeight + 'px';
+    
+    // If content exceeds max height, ensure scrollbar is visible
+    if (scrollHeight > maxHeight) {
+      this.input.style.overflowY = 'auto';
+    } else {
+      this.input.style.overflowY = 'hidden';
+    }
   }
 
   // Show tokens
-  updateTokenCountPill() {
-    const text = this.messageInput.value || '';
+  updateTokenCount() {
+    const text = this.input.value || '';
     // quick heuristic: ~4 chars per token
     const tokens = Math.ceil(text.length / 4);
-    this.tokenPill.textContent = `${tokens.toLocaleString()} token${tokens===1?'':'s'}`;
+    this.tokenCount.textContent = `${tokens.toLocaleString()} token${tokens===1?'':'s'}`;
   }
 
   // Handle keyboard shortcuts
@@ -406,13 +427,13 @@ class CedricPanel {
       this.sendMessage();
     } else if (event.key === 'Escape') {
       event.preventDefault();
-      this.messageInput.blur();
+      this.input.blur();
     }
   }
 
   // Update send button state
   updateSendButtonState() {
-    const hasText = this.messageInput.value.trim().length > 0;
+    const hasText = this.input.value.trim().length > 0;
     const hasApiKey = !this.apiKeyBanner.classList.contains('hidden');
     
     this.sendBtn.disabled = !hasText || hasApiKey || this.isLoading;
@@ -420,7 +441,7 @@ class CedricPanel {
 
   // Send message to Gemini
   async sendMessage() {
-    const text = this.messageInput.value.trim();
+    const text = this.input.value.trim();
     if (!text || !this.currentSessionId || this.isLoading) return;
     
     try {
@@ -435,9 +456,9 @@ class CedricPanel {
       this.addMessageToUI(userMessage);
       
       // Clear input
-      this.messageInput.value = '';
-      this.messageInput.style.height = 'auto';
-      this.updateTokenCountPill();
+      this.input.value = '';
+      this.input.style.height = 'auto';
+      this.updateTokenCount();
       
       // Get API key
       const apiKey = await SettingsStorage.getApiKey();
@@ -483,11 +504,11 @@ class CedricPanel {
     if (loading) {
       this.loadingIndicator.classList.remove('hidden');
       this.sendBtn.disabled = true;
-      this.messageInput.disabled = true;
+      this.input.disabled = true;
     } else {
       this.loadingIndicator.classList.add('hidden');
       this.sendBtn.disabled = false;
-      this.messageInput.disabled = false;
+      this.input.disabled = false;
       this.updateSendButtonState();
     }
   }
@@ -663,7 +684,7 @@ class CedricPanel {
       
       const link = document.createElement('a');
       link.href = URL.createObjectURL(dataBlob);
-      link.download = `cedric-sessions-${new Date().toISOString().split('T')[0]}.json`;
+      link.download = `browsemate-sessions-${new Date().toISOString().split('T')[0]}.json`;
       link.click();
       
       this.showToast('Sessions exported successfully', 'success');
@@ -778,5 +799,5 @@ class CedricPanel {
 
 // Initialize the panel when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-  new CedricPanel();
+  new BrowseMatePanel();
 });

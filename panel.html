@@ -3,152 +3,129 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cedric — AI Side Panel</title>
+  <title>BrowseMate — AI Side Panel</title>
   <link rel="stylesheet" href="panel.css">
 </head>
 <body>
-  <!-- Header -->
-  <header class="header">
-    <div class="header-left">
-      <h1 class="app-title">Cedric</h1>
+  <div id="browsemate-panel">
+    <!-- header -->
+    <div class="header">
+      <div class="brand">BrowseMate</div>
+
       <div class="tabs">
         <button id="tabChat" class="tab active">Chat</button>
         <button id="tabSources" class="tab">Sources</button>
       </div>
-      <div class="session-selector">
-        <select id="sessionSelect" class="session-dropdown">
-          <option value="">Loading sessions...</option>
-        </select>
-        <button id="newSessionBtn" class="new-session-btn" title="New Session">+</button>
-      </div>
-    </div>
-    
-    <div class="header-center">
-      <button id="ingestBtn" class="ingest-btn">
-        <svg class="ingest-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-          <polyline points="7,10 12,15 17,10"></polyline>
-          <line x1="12" y1="15" x2="12" y2="3"></line>
-        </svg>
-        Ingest this web page
-      </button>
-    </div>
-    
-    <div class="header-right">
-      <button id="settingsBtn" class="settings-btn" title="Settings">
-        <svg class="settings-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="3"></circle>
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1 1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-        </svg>
-      </button>
-      <button id="closeBtn" class="close-btn" title="Close Panel">×</button>
-    </div>
-  </header>
 
-  <!-- Main Content -->
-  <main class="main-content">
-    <!-- API Key Banner -->
-    <div id="apiKeyBanner" class="api-key-banner hidden">
-      <div class="banner-content">
-        <svg class="banner-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10"></circle>
-          <line x1="12" y1="8" x2="12" y2="12"></line>
-          <line x1="12" y1="16" x2="12.01" y2="16"></line>
-        </svg>
-        <span>Please set your Gemini API key in settings to start chatting</span>
-        <button id="openSettingsBtn" class="banner-btn">Open Settings</button>
-      </div>
-    </div>
-
-    <!-- Chat View -->
-    <div id="viewChat" class="view active">
-      <div id="chatContainer" class="chat-container">
-        <div id="messagesList" class="messages-list">
-          <!-- Messages will be inserted here -->
+      <!-- NEW: header-right holds session + gear + close -->
+      <div class="header-right">
+        <div id="sessionSwitcher" class="session-switcher">
+          <select id="sessionSelect" class="session-dropdown">
+            <option value="">Loading sessions...</option>
+          </select>
+          <button id="newSessionBtn" class="new-session-btn">+</button>
         </div>
-        
-        <!-- Loading indicator -->
-        <div id="loadingIndicator" class="loading-indicator hidden">
-          <div class="loading-spinner"></div>
-          <span>Thinking...</span>
+        <button id="ingestBtn" class="ingest-btn">
+          <svg class="ingest-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7,10 12,15 17,10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span>Ingest this web page</span>
+        </button>
+        <button id="settingsBtn" class="icon-btn" title="Settings">⚙️</button>
+        <button id="closeBtn" class="icon-btn" title="Close">✕</button>
+      </div>
+    </div>
+
+    <main class="main-content">
+      <!-- API Key Banner -->
+      <div id="apiKeyBanner" class="api-key-banner hidden">
+        <div class="banner-content">
+          <svg class="banner-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
+          </svg>
+          <span>API key not set. Please configure your Gemini API key to use BrowseMate.</span>
+          <button id="openSettingsBtn" class="banner-btn">Set API Key</button>
         </div>
       </div>
-    </div>
 
-    <!-- Sources View -->
-    <div id="viewSources" class="view">
-      <div class="sources-header">
-        <div class="muted">Ingested webpages for this session</div>
-        <div id="ingestedCount" class="badge">0</div>
-      </div>
-      <ul id="sourcesList" class="sources-list"></ul>
-    </div>
-
-    <!-- Composer -->
-    <div class="composer">
-      <div class="composer-field">
-        <textarea 
-          id="messageInput" 
-          placeholder="Ask Cedric anything... (Ctrl/Cmd+Enter to send)"
-        ></textarea>
-        <div id="tokenPill" class="token-pill">0 tokens</div>
-      </div>
-      <button id="sendBtn" class="send-btn">Send ↵</button>
-    </div>
-  </main>
-
-  <!-- Settings Modal -->
-  <div id="settingsModal" class="modal hidden">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2>Settings</h2>
-        <button id="closeSettingsBtn" class="modal-close-btn">×</button>
-      </div>
-      
-      <div class="modal-body">
-        <div class="setting-group">
-          <label for="apiKeyInput" class="setting-label">Gemini API Key</label>
-          <div class="api-key-input-wrapper">
-            <input 
-              type="password" 
-              id="apiKeyInput" 
-              class="setting-input" 
-              placeholder="Enter your Gemini API key"
-            >
-            <button id="testApiKeyBtn" class="test-btn">Test</button>
+      <!-- Chat View -->
+      <div id="viewChat" class="view active">
+        <div id="chatContainer" class="chat-container">
+          <div id="messagesList" class="messages-list">
+            <!-- Messages will be inserted here -->
           </div>
-          <p class="setting-help">
-            Get your API key from <a href="https://makersuite.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio</a>
-          </p>
+          <div id="loadingIndicator" class="loading-indicator hidden">
+            <div class="loading-spinner"></div>
+            <span>Thinking...</span>
+          </div>
         </div>
-        
-        <div class="setting-group">
-          <label class="setting-label">
-            <input type="checkbox" id="sendUrlToggle" class="setting-checkbox">
-            Send URL with requests
-          </label>
-          <p class="setting-help">Include current page URL in conversation context</p>
+      </div>
+
+      <!-- Sources View -->
+      <div id="viewSources" class="view">
+        <div class="sources-header">
+          <div class="muted">Ingested webpages for this session</div>
+          <div id="ingestedCount" class="badge">0</div>
         </div>
-        
-        <div class="setting-group">
-          <label class="setting-label">Data Management</label>
-          <div class="data-actions">
-            <button id="exportSessionsBtn" class="data-btn">Export Sessions</button>
-            <button id="importSessionsBtn" class="data-btn">Import Sessions</button>
-            <button id="clearDataBtn" class="data-btn danger">Clear All Data</button>
+        <ul id="sourcesList" class="sources-list"></ul>
+      </div>
+
+      <!-- Composer -->
+      <div class="composer">
+        <textarea id="input" placeholder="Ask BrowseMate… (Ctrl/Cmd+Enter to send)"></textarea>
+
+        <div class="composer-bar">
+          <div id="tokenCount" class="token-count">0 tokens</div>
+          <button id="sendBtn" class="send-btn">Send ↵</button>
+        </div>
+      </div>
+    </main>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Settings</h2>
+          <button id="closeSettingsBtn" class="modal-close-btn">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="setting-group">
+            <label for="apiKeyInput" class="setting-label">Gemini API Key</label>
+            <div class="api-key-input-wrapper">
+              <input type="password" id="apiKeyInput" class="setting-input" placeholder="Enter your Gemini API key">
+              <button id="testApiKeyBtn" class="test-btn">Test</button>
+            </div>
+            <div class="setting-help">
+              Get your API key from <a href="https://makersuite.google.com/app/apikey" target="_blank">Google AI Studio</a>
+            </div>
+          </div>
+
+          <div class="setting-group">
+            <label class="setting-label">
+              <input type="checkbox" id="sendUrlToggle" class="setting-checkbox">
+              Send current page URL with requests
+            </label>
+          </div>
+
+          <div class="setting-group">
+            <label class="setting-label">Data Management</label>
+            <div class="data-actions">
+              <button id="exportSessionsBtn" class="data-btn">Export Sessions</button>
+              <button id="importSessionsBtn" class="data-btn">Import Sessions</button>
+              <input type="file" id="importFileInput" accept=".json" style="display: none;">
+              <button id="clearDataBtn" class="data-btn danger">Clear All Data</button>
+            </div>
           </div>
         </div>
       </div>
     </div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
   </div>
 
-  <!-- Toast Notifications -->
-  <div id="toastContainer" class="toast-container"></div>
-
-  <!-- Hidden file input for import -->
-  <input type="file" id="importFileInput" accept=".json" style="display: none;">
-
-  <!-- Scripts -->
   <script type="module" src="panel.js"></script>
 </body>
 </html>

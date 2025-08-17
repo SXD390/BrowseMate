@@ -1,211 +1,147 @@
-// Storage wrapper for Chrome extension
-// Provides namespaced keys and utility functions for chrome.storage.local
+// Storage utilities for BrowseMate AI Side Panel
+// Provides namespaced access to chrome.storage.local
 
-const STORAGE_KEYS = {
-  API_KEY: 'cedric_api_key',
-  SESSIONS: 'cedric_sessions',
-  SETTINGS: 'cedric_settings',
-  CURRENT_SESSION: 'cedric_current_session'
+const PREFIX = 'bm';
+
+// Storage keys
+export const STORAGE_KEYS = {
+  SETTINGS: `${PREFIX}_settings`,
+  SESSIONS: `${PREFIX}_sessions`,
+  ACTIVE_SESSION_ID: `${PREFIX}_active_session_id`,
+  API_KEY: `${PREFIX}_api_key`
 };
 
-// Default settings
-const DEFAULT_SETTINGS = {
-  sendUrlWithRequests: true,
-  theme: 'dark'
-};
-
-// Default session structure
-const DEFAULT_SESSION = {
-  id: '',
-  name: '',
-  messages: [],
-  createdAt: '',
-  updatedAt: ''
-};
-
-// Storage utility functions
-export const Storage = {
-  // Get a value from storage
-  async get(key) {
-    try {
-      const result = await chrome.storage.local.get(key);
-      return result[key];
-    } catch (error) {
-      console.error('Storage get error:', error);
-      return null;
-    }
-  },
-
-  // Set a value in storage
-  async set(key, value) {
-    try {
-      await chrome.storage.local.set({ [key]: value });
-      return true;
-    } catch (error) {
-      console.error('Storage set error:', error);
-      return false;
-    }
-  },
-
-  // Remove a key from storage
-  async remove(key) {
-    try {
-      await chrome.storage.local.remove(key);
-      return true;
-    } catch (error) {
-      console.error('Storage remove error:', error);
-      return false;
-    }
-  },
-
-  // Get multiple values at once
-  async getMultiple(keys) {
-    try {
-      const result = await chrome.storage.local.get(keys);
-      return result;
-    } catch (error) {
-      console.error('Storage getMultiple error:', error);
-      return {};
-    }
-  },
-
-  // Set multiple values at once
-  async setMultiple(values) {
-    try {
-      await chrome.storage.local.set(values);
-      return true;
-    } catch (error) {
-      console.error('Storage setMultiple error:', error);
-      return false;
-    }
-  },
-
-  // Clear all storage
-  async clear() {
-    try {
-      await chrome.storage.local.clear();
-      return true;
-    } catch (error) {
-      console.error('Storage clear error:', error);
-      return false;
-    }
-  }
-};
-
-// Session management functions
-export const SessionStorage = {
-  // Get all sessions
-  async getSessions() {
-    const sessions = await Storage.get(STORAGE_KEYS.SESSIONS);
-    return sessions || {};
-  },
-
-  // Save a session
-  async saveSession(session) {
-    const sessions = await this.getSessions();
-    sessions[session.id] = {
-      ...session,
-      updatedAt: new Date().toISOString()
-    };
-    return await Storage.set(STORAGE_KEYS.SESSIONS, sessions);
-  },
-
-  // Get a specific session
-  async getSession(sessionId) {
-    const sessions = await this.getSessions();
-    return sessions[sessionId] || null;
-  },
-
-  // Delete a session
-  async deleteSession(sessionId) {
-    const sessions = await this.getSessions();
-    delete sessions[sessionId];
-    return await Storage.set(STORAGE_KEYS.SESSIONS, sessions);
-  },
-
-  // Create a new session
-  async createSession(name = null) {
-    const sessions = await this.getSessions();
-    const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const sessionName = name || `Session ${Object.keys(sessions).length + 1}`;
+// One-time migration from old "cedric" keys to new "bm" keys
+async function migrateFromCedric() {
+  try {
+    const old = await chrome.storage.local.get(null);
+    const updates = {};
     
+    if (old['cedric_settings'] && !old[STORAGE_KEYS.SETTINGS]) {
+      updates[STORAGE_KEYS.SETTINGS] = old['cedric_settings'];
+    }
+    if (old['cedric_sessions'] && !old[STORAGE_KEYS.SESSIONS]) {
+      updates[STORAGE_KEYS.SESSIONS] = old['cedric_sessions'];
+    }
+    if (old['cedric_active_session_id'] && !old[STORAGE_KEYS.ACTIVE_SESSION_ID]) {
+      updates[STORAGE_KEYS.ACTIVE_SESSION_ID] = old['cedric_active_session_id'];
+    }
+    if (old['cedric_api_key'] && !old[STORAGE_KEYS.API_KEY]) {
+      updates[STORAGE_KEYS.API_KEY] = old['cedric_api_key'];
+    }
+    
+    if (Object.keys(updates).length > 0) {
+      await chrome.storage.local.set(updates);
+      console.log('Migrated data from old Cedric keys to new BrowseMate keys');
+    }
+  } catch (error) {
+    console.error('Migration failed:', error);
+  }
+}
+
+// Run migration on load
+migrateFromCedric();
+
+// Generic storage operations
+async function get(key) {
+  const result = await chrome.storage.local.get(key);
+  return result[key];
+}
+
+async function set(key, value) {
+  await chrome.storage.local.set({ [key]: value });
+}
+
+async function remove(key) {
+  await chrome.storage.local.remove(key);
+}
+
+async function setMultiple(updates) {
+  await chrome.storage.local.set(updates);
+}
+
+// Settings storage
+export class SettingsStorage {
+  static async getSettings() {
+    const settings = await get(STORAGE_KEYS.SETTINGS);
+    return settings || {
+      sendUrlWithRequests: false
+    };
+  }
+
+  static async updateSettings(newSettings) {
+    const current = await this.getSettings();
+    const updated = { ...current, ...newSettings };
+    await set(STORAGE_KEYS.SETTINGS, updated);
+    return updated;
+  }
+
+  static async getApiKey() {
+    return await get(STORAGE_KEYS.API_KEY);
+  }
+
+  static async setApiKey(apiKey) {
+    await set(STORAGE_KEYS.API_KEY, apiKey);
+  }
+
+  static async removeApiKey() {
+    await remove(STORAGE_KEYS.API_KEY);
+  }
+}
+
+// Session storage
+export class SessionStorage {
+  static async getSessions() {
+    const sessions = await get(STORAGE_KEYS.SESSIONS);
+    return sessions || {};
+  }
+
+  static async getSession(sessionId) {
+    const sessions = await this.getSessions();
+    return sessions[sessionId];
+  }
+
+  static async saveSession(session) {
+    const sessions = await this.getSessions();
+    sessions[session.id] = session;
+    await set(STORAGE_KEYS.SESSIONS, sessions);
+    return session;
+  }
+
+  static async createSession() {
+    const sessions = await this.getSessions();
     const newSession = {
-      id: sessionId,
-      name: sessionName,
+      id: `session_${Date.now()}`,
+      name: `Session ${Object.keys(sessions).length + 1}`,
       messages: [],
+      ingestedUrls: {},
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
     
-    sessions[sessionId] = newSession;
-    await Storage.set(STORAGE_KEYS.SESSIONS, sessions);
-    
+    await this.saveSession(newSession);
     return newSession;
-  },
-
-  // Add message to session
-  async addMessage(sessionId, message) {
-    const session = await this.getSession(sessionId);
-    if (!session) return false;
-    
-    session.messages.push({
-      ...message,
-      timestamp: new Date().toISOString()
-    });
-    
-    return await this.saveSession(session);
-  },
-
-  // Update session name
-  async updateSessionName(sessionId, newName) {
-    const session = await this.getSession(sessionId);
-    if (!session) return false;
-    
-    session.name = newName;
-    return await this.saveSession(session);
-  },
-
-  // Get current active session ID
-  async getCurrentSessionId() {
-    return await Storage.get(STORAGE_KEYS.CURRENT_SESSION);
-  },
-
-  // Set current active session ID
-  async setCurrentSessionId(sessionId) {
-    return await Storage.set(STORAGE_KEYS.CURRENT_SESSION, sessionId);
   }
-};
 
-// Settings management functions
-export const SettingsStorage = {
-  // Get settings
-  async getSettings() {
-    const settings = await Storage.get(STORAGE_KEYS.SETTINGS);
-    return { ...DEFAULT_SETTINGS, ...settings };
-  },
-
-  // Update settings
-  async updateSettings(newSettings) {
-    const currentSettings = await this.getSettings();
-    const updatedSettings = { ...currentSettings, ...newSettings };
-    return await Storage.set(STORAGE_KEYS.SETTINGS, updatedSettings);
-  },
-
-  // Get API key
-  async getApiKey() {
-    return await Storage.get(STORAGE_KEYS.API_KEY);
-  },
-
-  // Set API key
-  async setApiKey(apiKey) {
-    return await Storage.set(STORAGE_KEYS.API_KEY, apiKey);
-  },
-
-  // Remove API key
-  async removeApiKey() {
-    return await Storage.remove(STORAGE_KEYS.API_KEY);
+  static async addMessage(sessionId, message) {
+    const session = await this.getSession(sessionId);
+    if (!session) throw new Error('Session not found');
+    
+    session.messages.push(message);
+    session.updatedAt = new Date().toISOString();
+    await this.saveSession(session);
+    return message;
   }
-};
 
-// Export storage keys for use in other modules
-export { STORAGE_KEYS, DEFAULT_SETTINGS, DEFAULT_SESSION };
+  static async getCurrentSessionId() {
+    return await get(STORAGE_KEYS.ACTIVE_SESSION_ID);
+  }
+
+  static async setCurrentSessionId(sessionId) {
+    await set(STORAGE_KEYS.ACTIVE_SESSION_ID, sessionId);
+  }
+
+  static async setMultiple(updates) {
+    await setMultiple(updates);
+  }
+}

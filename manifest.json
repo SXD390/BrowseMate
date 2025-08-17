@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Cedric — AI Side Panel",
+  "name": "BrowseMate — AI Side Panel",
   "version": "1.0.0",
-  "description": "AI summarizer and lightweight chat using Google Gemini with a persistent right-side panel",
+  "description": "BrowseMate helps summarize and chat about web pages using Google Gemini AI. A lightweight AI side panel for Chrome.",
   "permissions": [
     "sidePanel",
     "storage",
@@ -26,7 +26,7 @@
     }
   ],
   "action": {
-    "default_title": "Cedric — AI Side Panel",
+    "default_title": "BrowseMate — AI Side Panel",
     "default_icon": {
       "16": "assets/icon16.png",
       "48": "assets/icon48.png",
