@@ -4,6 +4,18 @@
 import { SessionStorage, SettingsStorage, STORAGE_KEYS } from './storage.js';
 import { callGemini, parseGeminiResponse, compileMessagesForGemini, testApiKey } from './gemini.js';
 
+// Render model text as markdown safely
+function renderMarkdown(mdText = '') {
+  // 1) md -> html
+  const html = marked.parse(mdText, {
+    breaks: true,        // newline => <br>
+    gfm: true            // tables, task lists, etc.
+  });
+  // 2) sanitize html
+  const clean = DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
+  return clean;
+}
+
 class BrowseMatePanel {
   constructor() {
     this.currentSessionId = null;
@@ -544,7 +556,15 @@ class BrowseMatePanel {
     } else if (message.role === 'user') {
       messageDiv.innerHTML = `<div class="message-content">${message.text}</div>`;
     } else if (message.role === 'model') {
-      messageDiv.innerHTML = `<div class="message-content">${message.text}</div>`;
+      // Render model messages as markdown
+      const markdownHtml = renderMarkdown(message.text);
+      messageDiv.innerHTML = `<div class="message-content">${markdownHtml}</div>`;
+      
+      // Make links safe & open in new tab
+      messageDiv.querySelectorAll('a').forEach(a => {
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer nofollow';
+      });
     }
     
     this.messagesList.appendChild(messageDiv);

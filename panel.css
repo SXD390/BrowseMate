@@ -1006,3 +1006,128 @@ textarea:focus-visible {
   max-height: calc(100vh - 200px); /* Same constraint as chat */
   padding: 0 0 80px 0; /* Bottom padding for fixed composer */
 }
+
+/* Markdown styling for model/assistant messages */
+.message.model .message-content {
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.message.model .message-content h1,
+.message.model .message-content h2,
+.message.model .message-content h3 {
+  color: var(--text-primary);
+  margin: 10px 0 6px;
+  line-height: 1.25;
+}
+
+.message.model .message-content h1 { font-size: 1.5em; font-weight: 600; }
+.message.model .message-content h2 { font-size: 1.3em; font-weight: 600; }
+.message.model .message-content h3 { font-size: 1.1em; font-weight: 600; }
+
+.message.model .message-content p,
+.message.model .message-content ul,
+.message.model .message-content ol,
+.message.model .message-content pre,
+.message.model .message-content table {
+  margin: 8px 0;
+}
+
+.message.model .message-content ul { 
+  padding-left: 18px; 
+  list-style: disc; 
+}
+
+.message.model .message-content ol { 
+  padding-left: 18px; 
+  list-style: decimal; 
+}
+
+.message.model .message-content li {
+  margin: 4px 0;
+}
+
+.message.model .message-content code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border-color);
+  font-size: 0.9em;
+}
+
+.message.model .message-content pre {
+  background: rgba(0,0,0,0.2);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 12px;
+  margin: 12px 0;
+  overflow-x: auto;
+}
+
+.message.model .message-content pre code {
+  display: block;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 0;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+/* Tables */
+.message.model .message-content table {
+  border-collapse: collapse;
+  width: 100%;
+  overflow: auto;
+  display: block;
+  margin: 12px 0;
+}
+
+.message.model .message-content th,
+.message.model .message-content td {
+  border: 1px solid var(--border-color);
+  padding: 6px 8px;
+  text-align: left;
+}
+
+.message.model .message-content thead th {
+  background: rgba(255,255,255,0.06);
+  font-weight: 600;
+}
+
+.message.model .message-content tbody tr:nth-child(even) {
+  background: rgba(255,255,255,0.02);
+}
+
+/* Links */
+.message.model .message-content a {
+  color: var(--accent-color);
+  text-decoration: none;
+}
+
+.message.model .message-content a:hover {
+  text-decoration: underline;
+}
+
+/* Blockquotes */
+.message.model .message-content blockquote {
+  border-left: 4px solid var(--accent-color);
+  margin: 12px 0;
+  padding: 8px 16px;
+  background: rgba(79, 70, 229, 0.1);
+  border-radius: 0 8px 8px 0;
+}
+
+/* Horizontal rules */
+.message.model .message-content hr {
+  border: none;
+  border-top: 1px solid var(--border-color);
+  margin: 16px 0;
+}
+
+/* Task lists */
+.message.model .message-content input[type="checkbox"] {
+  margin-right: 8px;
+  accent-color: var(--accent-color);
+}

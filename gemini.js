@@ -73,9 +73,7 @@ Guidelines:
 - If asked about content not in the current context, politely ask the user to ingest the relevant page
 - Use markdown formatting for better readability
 - Be helpful and professional in tone
-- If you're unsure about something, acknowledge the limitation and suggest alternatives
-
-Current context: ${contextSummary}`
+- If you're unsure about something, acknowledge the limitation and suggest alternatives`
     }]
   };
 
