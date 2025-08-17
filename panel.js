@@ -68,9 +68,9 @@ class CedricPanel {
     this.settingsBtn.addEventListener('click', () => this.openSettings());
     this.closeBtn.addEventListener('click', () => this.closePanel());
     
-    // Tab events
-    this.tabChat.addEventListener('click', () => this.switchTab('chat'));
-    this.tabSources.addEventListener('click', () => this.switchTab('sources'));
+    // Tab switching
+    this.tabChat.addEventListener('click', () => this.switchTab('Chat'));
+    this.tabSources.addEventListener('click', () => this.switchTab('Sources'));
     
     // Composer events
     this.messageInput.addEventListener('input', (e) => this.handleInputChange(e));
@@ -132,17 +132,36 @@ class CedricPanel {
   }
 
   // Switch between chat and sources tabs
-  switchTab(which) {
-    const isChat = which === 'chat';
-    this.tabChat.classList.toggle('active', isChat);
-    this.tabSources.classList.toggle('active', !isChat);
-    this.viewChat.classList.toggle('active', isChat);
-    this.viewSources.classList.toggle('active', !isChat);
+  switchTab(tabName) {
+    // Remove active class from all tabs and views
+    document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(view => view.classList.remove('active'));
     
-    if (!isChat) {
-      // Refresh sources when switching to sources tab
-      this.renderSources();
+    // Add active class to selected tab and view
+    document.getElementById(`tab${tabName}`).classList.add('active');
+    document.getElementById(`view${tabName}`).classList.add('active');
+    
+    // Ensure proper layout constraints
+    this.maintainLayoutConstraints();
+  }
+
+  maintainLayoutConstraints() {
+    // Force layout recalculation
+    this.messagesList.style.maxHeight = `calc(100vh - 200px)`;
+    this.messagesList.style.overflowY = 'auto';
+    
+    // Ensure composer stays visible
+    const composer = document.querySelector('.composer');
+    if (composer) {
+      composer.style.position = 'sticky';
+      composer.style.bottom = '0';
+      composer.style.zIndex = '10';
     }
+    
+    // Force scroll to bottom if needed
+    setTimeout(() => {
+      this.messagesList.scrollTop = this.messagesList.scrollHeight;
+    }, 100);
   }
 
   // Load user settings
@@ -245,11 +264,16 @@ class CedricPanel {
   async loadSessionMessages(sessionId) {
     try {
       const session = await SessionStorage.getSession(sessionId);
-      if (session) {
-        this.displayMessages(session.messages);
-        // Also render sources
-        await this.renderSources();
+      if (!session) return;
+
+      this.messagesList.innerHTML = '';
+      
+      if (session.messages && session.messages.length > 0) {
+        session.messages.forEach(message => this.addMessageToUI(message));
       }
+      
+      // Maintain layout constraints after loading messages
+      this.maintainLayoutConstraints();
     } catch (error) {
       console.error('Failed to load session messages:', error);
     }
@@ -324,6 +348,9 @@ class CedricPanel {
 
       // Update sources list
       await this.renderSources();
+      
+      // Maintain layout constraints after ingestion
+      this.maintainLayoutConstraints();
 
       this.showToast(`Ingested content from ${contextMessage.domain}`, 'success');
     } catch (err) {
@@ -474,38 +501,35 @@ class CedricPanel {
 
   // Add a single message to the UI
   addMessageToUI(message) {
-    const messageElement = document.createElement('div');
-    messageElement.className = `message ${message.role}`;
-    
-    let contentHTML = '';
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${message.role}`;
     
     if (message.role === 'context') {
-      contentHTML = `
-        <div class="message-content">
-          <div class="context-header">
-            <svg class="context-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-            </svg>
-            <span class="context-domain">${message.domain || 'Unknown'}</span>
-            <span class="context-timestamp">${new Date(message.timestamp).toLocaleTimeString()}</span>
-          </div>
-          <div>Context ingested from <strong>${message.title || 'Unknown page'}</strong></div>
-          ${message.essentialMarkdown ? `<div class="context-preview">${message.essentialMarkdown.slice(0, 200)}${message.essentialMarkdown.length > 200 ? '...' : ''}</div>` : ''}
+      // Context message with height constraints
+      const domain = this.extractDomain(message.url);
+      const timestamp = new Date(message.timestamp).toLocaleString();
+      
+      messageDiv.innerHTML = `
+        <div class="context-header">
+          📄 ${message.title || 'Untitled'} • ${domain} • ${timestamp}
+        </div>
+        <div class="context-content">
+          ${message.essentialMarkdown ? 
+            `<div class="context-preview">${message.essentialMarkdown.slice(0, 500)}${message.essentialMarkdown.length > 500 ? '...' : ''}</div>` : 
+            '<em>Content preview not available</em>'
+          }
         </div>
       `;
-    } else {
-      const textClass = message.isError ? 'text-error' : '';
-      contentHTML = `
-        <div class="message-content ${textClass}">
-          ${this.formatMessageText(message.text)}
-        </div>
-      `;
+    } else if (message.role === 'user') {
+      messageDiv.innerHTML = `<div class="message-content">${message.text}</div>`;
+    } else if (message.role === 'model') {
+      messageDiv.innerHTML = `<div class="message-content">${message.text}</div>`;
     }
     
-    messageElement.innerHTML = contentHTML;
-    this.messagesList.appendChild(messageElement);
-    this.scrollToBottom();
+    this.messagesList.appendChild(messageDiv);
+    
+    // Scroll to bottom
+    this.messagesList.scrollTop = this.messagesList.scrollHeight;
   }
 
   // Format message text (basic markdown support)
