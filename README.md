@@ -54,50 +54,18 @@ extension/
 
 Create a key in Google AI Studio. Keep it private.
 
-### 2) Install vendor files (no bundler required)
-
-We vendor tiny client‑side libs for Markdown rendering and PDF text extraction.
-
-**Node (macOS/Linux):**
-
-```bash
-npm i marked dompurify highlight.js pdfjs-dist --save-dev
-mkdir -p extension/vendor/{marked,dompurify,highlightjs,pdfjs}
-cp node_modules/marked/marked.min.js extension/vendor/marked/
-cp node_modules/dompurify/dist/purify.min.js extension/vendor/dompurify/
-cp node_modules/highlight.js/lib/common.min.js extension/vendor/highlightjs/highlight.min.js
-cp node_modules/highlight.js/styles/github-dark.min.css extension/vendor/highlightjs/
-cp node_modules/pdfjs-dist/build/pdf.mjs extension/vendor/pdfjs/pdf.mjs
-cp node_modules/pdfjs-dist/build/pdf.worker.mjs extension/vendor/pdfjs/pdf.worker.mjs
-```
-
-**PowerShell (Windows):**
-
-```powershell
-npm i marked dompurify highlight.js pdfjs-dist --save-dev
-New-Item -ItemType Directory extension/vendor/marked,extension/vendor/dompurify,extension/vendor/highlightjs,extension/vendor/pdfjs -Force | Out-Null
-Copy-Item node_modules/marked/marked.min.js extension/vendor/marked/
-Copy-Item node_modules/dompurify/dist/purify.min.js extension/vendor/dompurify/
-Copy-Item node_modules/highlight.js/lib/common.min.js extension/vendor/highlightjs/highlight.min.js
-Copy-Item node_modules/highlight.js/styles/github-dark.min.css extension/vendor/highlightjs/
-Copy-Item node_modules/pdfjs-dist/build/pdf.mjs extension/vendor/pdfjs/pdf.mjs
-Copy-Item node_modules/pdfjs-dist/build/pdf.worker.mjs extension/vendor/pdfjs/pdf.worker.mjs
-```
-
-> If you don’t need syntax highlighting, you can skip the `highlight.js` lines.
-
-### 3) Load the extension
+### 2) Load the extension
 
 1. Visit `chrome://extensions` → toggle **Developer mode**.
 2. Click **Load unpacked** → select the `extension/` folder.
 3. Pin **BrowseMate** to your toolbar.
 
-### 4) First‑run setup
+### 3) First‑run setup
 
 * Click the icon → the side panel opens.
 * Open **Settings** (gear) → paste your **Gemini API key**. Optionally pick a model ID (defaults to `models/gemini-2.0-flash`).
 
-### 5) Use it
+### 4) Use it
 
 * **Chat:** type and press ⌘/Ctrl+Enter or **Send**.
 * **Ingest:** click **Ingest this web page**. In PDFs, BrowseMate extracts the text via pdf.js.
